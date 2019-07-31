@@ -2,7 +2,9 @@
 
 This bot scans the most popular flat rent portals for latest posts, which will be sent to subscribed users using Telegram app.
 
-See it in action (only in Lithuanian language): https://t.me/butuskelbimubot
+Hardware requirements are so low that you can even run this completelly fine on a lowest-end SBC. On RPI0W, RAM usage is only about 10mb and CPU load is up to 25%, so you can run this on any _potato_ you want :)
+
+See it in action (Lithuanian language): https://t.me/butuskelbimubot (yes, hosted on RPI0W)
 
 ## Installation
 
