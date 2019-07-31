@@ -42,7 +42,10 @@ go get github.com/mattn/go-sqlite3
 go get github.com/PuerkitoBio/goquery
 ```
 
-Then create file `telegram.conf` and save only your Telegram **API key** in there. Nothing else.
+Then create file `telegram.conf` and save your Telegram **API key**:
+```
+echo "<your_api_key>" > telegram.conf
+```
 
 Then using below command create empty database:
 ```
