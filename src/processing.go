@@ -44,8 +44,10 @@ var exclusionKeywords = []string{
 	"vienkartinis agenturos mokestis jei",
 	"vienkartinis agenturinis mokestis jei",
 	"vienkartinis tarpininkavimo mokestis jei",
-	" tiks, bus taiko",
-	" tiks bus taiko",
+	" tiks, bus taikoma",
+	" tiks bus taikoma",
+	" tiks, yra taikoma",
+	" tiks yra taikoma",
 	"taikomas vienkartinis tarpininkavimo mokestis",
 	"tiks vienkartinis tarpininkavimo mokestis",
 	"tarpininkavimo mokestis-",
@@ -64,7 +66,7 @@ var exclusionKeywords = []string{
 	".yra vienkartinis agent",
 }
 
-var regexExclusion1 = regexp.MustCompile(`(agenturos|agenturinis|agentūrinis|tarpininkavimo) mokestis[\s:]{0,3}\d+`)
+var regexExclusion1 = regexp.MustCompile(`(agenturos|agentūros|agenturinis|agentūrinis|tarpininkavimo) mokestis[\s:]{0,3}\d+`)
 
 // Note that post is already checked against DB in parsing functions!
 func processPost(p post) {
