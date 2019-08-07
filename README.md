@@ -20,7 +20,7 @@ enable - Enable notifications
 disable - Disable notifications
 stats - Interesting statistics
 ```
-Once you set-up bot, you should have your Telegram **API key**.
+Once you set-up bot, you should have your bot's Telegram **API key**.
 
 ### Set-up application
 
@@ -44,7 +44,7 @@ go get github.com/mattn/go-sqlite3
 go get github.com/PuerkitoBio/goquery
 ```
 
-Then create file `telegram.conf` and save your Telegram **API key**:
+Then create file `telegram.conf` and save your bot's Telegram **API key**:
 ```
 echo "<your_api_key>" > telegram.conf
 ```
@@ -62,4 +62,10 @@ go build src/*.go
 And finally, run:
 ```
 ./main
+```
+
+Time to time you wish to update this app. Pull latest changes & recompile:
+```
+git pull
+go build src/*.go
 ```
