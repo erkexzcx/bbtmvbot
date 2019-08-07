@@ -14,9 +14,6 @@ const urlAruodas = "https://m.aruodas.lt/?obj=4&FRegion=461&FDistrict=1&FOrder=A
 
 func parseAruodas() {
 
-	// Wait few seconds so Telegram bot starts up
-	time.Sleep(5 * time.Second)
-
 	// Run 'parseAruodas' over and over again:
 	defer func() {
 		time.Sleep(3 * time.Minute)

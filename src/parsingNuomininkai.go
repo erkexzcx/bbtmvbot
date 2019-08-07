@@ -14,9 +14,6 @@ const urlNuomininkai = "https://nuomininkai.lt/paieska/?propery_type=butu-nuoma&
 
 func parseNuomininkai() {
 
-	// Wait few seconds so Telegram bot starts up
-	time.Sleep(5 * time.Second)
-
 	// Run 'parseNuomininkai' over and over again:
 	defer func() {
 		time.Sleep(3 * time.Minute)

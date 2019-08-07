@@ -130,13 +130,19 @@ func main() {
 	})
 
 	// Start parsers in separate goroutines:
-	go parseAruodas()
-	go parseSkelbiu()
-	go parseDomoplius()
-	go parseAlio()
-	go parseRinka()
-	go parseKampas()
-	go parseNuomininkai()
+	go func() {
+		// Wait few seconds so Telegram bot starts up
+		time.Sleep(5 * time.Second)
+
+		go parseAruodas()
+		go parseSkelbiu()
+		go parseDomoplius()
+		go parseAlio()
+		go parseRinka()
+		go parseKampas()
+		go parseNuomininkai()
+
+	}()
 
 	// Start bot:
 	bot.Start()

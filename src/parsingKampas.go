@@ -14,9 +14,6 @@ const urlKampas = "https://www.kampas.lt/api/classifieds/search-new?query={%22mu
 
 func parseKampas() {
 
-	// Wait few seconds so Telegram bot starts up
-	time.Sleep(5 * time.Second)
-
 	// Run 'parseKampas' over and over again:
 	defer func() {
 		time.Sleep(3 * time.Minute)

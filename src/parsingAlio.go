@@ -14,9 +14,6 @@ const urlAlio = "https://www.alio.lt/paieska/?category_id=1393&city_id=228626&se
 
 func parseAlio() {
 
-	// Wait few seconds so Telegram bot starts up
-	time.Sleep(5 * time.Second)
-
 	// Run 'parseAlio' over and over again:
 	defer func() {
 		time.Sleep(3 * time.Minute)

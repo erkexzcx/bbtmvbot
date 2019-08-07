@@ -17,9 +17,6 @@ var regexRinkaPrice = regexp.MustCompile(`Kaina: ([\d,]+),\d+ €`)
 
 func parseRinka() {
 
-	// Wait few seconds so Telegram bot starts up
-	time.Sleep(5 * time.Second)
-
 	// Run 'parseRinka' over and over again:
 	defer func() {
 		time.Sleep(3 * time.Minute)

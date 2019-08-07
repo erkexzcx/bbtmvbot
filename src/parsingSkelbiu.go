@@ -14,9 +14,6 @@ const urlSkelbiu = "https://www.skelbiu.lt/skelbimai/?cities=465&category_id=322
 
 func parseSkelbiu() {
 
-	// Wait few seconds so Telegram bot starts up
-	time.Sleep(5 * time.Second)
-
 	// Run 'parseSkelbiu' over and over again:
 	defer func() {
 		time.Sleep(3 * time.Minute)
