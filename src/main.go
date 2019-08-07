@@ -36,9 +36,6 @@ func main() {
 	databaseConnect()
 	defer db.Close()
 
-	go parseRinka()
-	time.Sleep(3 * time.Hour)
-
 	// Setup Telegrambot API
 	poller := &tb.LongPoller{Timeout: 15 * time.Second}
 	middlewarePoller := tb.NewMiddlewarePoller(poller, func(upd *tb.Update) bool {
