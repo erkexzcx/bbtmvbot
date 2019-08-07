@@ -12,15 +12,8 @@ func parseSkelbiu() {
 
 	url := "https://www.skelbiu.lt/skelbimai/?cities=465&category_id=322&cities=465&district=0&cost_min=&cost_max=&status=0&space_min=&space_max=&rooms_min=&rooms_max=&building=0&year_min=&year_max=&floor_min=&floor_max=&floor_type=0&user_type=0&type=1&orderBy=1&import=2&keywords="
 
-	// Get HTML:
-	reader, err := downloadAsReader(url)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	// Load the HTML document
-	doc, err := goquery.NewDocumentFromReader(reader)
+	// Get content as Goquery Document:
+	doc, err := downloadAsGoqueryDocument(url)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -42,15 +35,8 @@ func parseSkelbiu() {
 			return
 		}
 
-		// Download that URL:
-		postReader, err := downloadAsReader(link)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-
-		// Load the HTML document of post
-		postDoc, err := goquery.NewDocumentFromReader(postReader)
+		// Get post's content as Goquery Document:
+		postDoc, err := downloadAsGoqueryDocument(link)
 		if err != nil {
 			fmt.Println(err)
 			return

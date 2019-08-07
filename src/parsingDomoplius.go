@@ -17,15 +17,8 @@ func parseDomoplius() {
 
 	url := "https://m.domoplius.lt/skelbimai/butai?action_type=3&address_1=461&sell_price_from=&sell_price_to=&qt="
 
-	// Get HTML:
-	reader, err := downloadAsReader(url)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	// Load the HTML document
-	doc, err := goquery.NewDocumentFromReader(reader)
+	// Get content as Goquery Document:
+	doc, err := downloadAsGoqueryDocument(url)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -47,15 +40,8 @@ func parseDomoplius() {
 			return
 		}
 
-		// Download that URL:
-		postReader, err := downloadAsReader(link)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-
-		// Load the HTML document of post
-		postDoc, err := goquery.NewDocumentFromReader(postReader)
+		// Get post's content as Goquery Document:
+		postDoc, err := downloadAsGoqueryDocument(link)
 		if err != nil {
 			fmt.Println(err)
 			return

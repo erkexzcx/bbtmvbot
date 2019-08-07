@@ -12,15 +12,8 @@ func parseNuomininkai() {
 
 	url := "https://nuomininkai.lt/paieska/?propery_type=butu-nuoma&propery_contract_type=&propery_location=461&imic_property_district=&new_quartals=&min_price=&max_price=&min_price_meter=&max_price_meter=&min_area=&max_area=&rooms_from=&rooms_to=&high_from=&high_to=&floor_type=&irengimas=&building_type=&house_year_from=&house_year_to=&zm_skaicius=&lot_size_from=&lot_size_to=&by_date="
 
-	// Get HTML:
-	reader, err := downloadAsReader(url)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	// Load the HTML document
-	doc, err := goquery.NewDocumentFromReader(reader)
+	// Get content as Goquery Document:
+	doc, err := downloadAsGoqueryDocument(url)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -42,15 +35,8 @@ func parseNuomininkai() {
 			return
 		}
 
-		// Download that URL:
-		postReader, err := downloadAsReader(link)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-
-		// Load the HTML document of post
-		postDoc, err := goquery.NewDocumentFromReader(postReader)
+		// Get post's content as Goquery Document:
+		postDoc, err := downloadAsGoqueryDocument(link)
 		if err != nil {
 			fmt.Println(err)
 			return

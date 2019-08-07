@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
+
+	"github.com/PuerkitoBio/goquery"
 )
 
 func compileAddressWithStreet(state, street, houseNumber string) (address string) {
@@ -31,7 +32,7 @@ func compileAddress(state, street string) (address string) {
 	return
 }
 
-func downloadAsReader(url string) (io.ReadCloser, error) {
+func downloadAsBytes(url string) ([]byte, error) {
 	res, err := http.Get(url)
 	if err != nil {
 		return nil, err
@@ -40,14 +41,21 @@ func downloadAsReader(url string) (io.ReadCloser, error) {
 	if res.StatusCode != 200 {
 		return nil, fmt.Errorf("status code error: %d %s", res.StatusCode, res.Status)
 	}
-	return res.Body, nil
-}
-
-func downloadAsBytes(url string) ([]byte, error) {
-	r, err := downloadAsReader(url)
-	content, err := ioutil.ReadAll(r)
+	content, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return nil, err
 	}
 	return []byte(content), nil
+}
+
+func downloadAsGoqueryDocument(url string) (*goquery.Document, error) {
+	res, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != 200 {
+		return nil, fmt.Errorf("status code error: %d %s", res.StatusCode, res.Status)
+	}
+	return goquery.NewDocumentFromReader(res.Body)
 }

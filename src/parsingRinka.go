@@ -15,15 +15,8 @@ func parseRinka() {
 
 	url := "https://www.rinka.lt/nekilnojamojo-turto-skelbimai/butu-nuoma?filter%5BKainaForAll%5D%5Bmin%5D=&filter%5BKainaForAll%5D%5Bmax%5D=&filter%5BNTnuomakambariuskaiciusButai%5D%5Bmin%5D=&filter%5BNTnuomakambariuskaiciusButai%5D%5Bmax%5D=&filter%5BNTnuomabendrasplotas%5D%5Bmin%5D=&filter%5BNTnuomabendrasplotas%5D%5Bmax%5D=&filter%5BNTnuomastatybosmetai%5D%5Bmin%5D=&filter%5BNTnuomastatybosmetai%5D%5Bmax%5D=&filter%5BNTnuomaaukstuskaicius%5D%5Bmin%5D=&filter%5BNTnuomaaukstuskaicius%5D%5Bmax%5D=&filter%5BNTnuomaaukstas%5D%5Bmin%5D=&filter%5BNTnuomaaukstas%5D%5Bmax%5D=&cities%5B0%5D=2&cities%5B1%5D=3"
 
-	// Get HTML:
-	reader, err := downloadAsReader(url)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	// Load the HTML document
-	doc, err := goquery.NewDocumentFromReader(reader)
+	// Get content as Goquery Document:
+	doc, err := downloadAsGoqueryDocument(url)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -45,15 +38,8 @@ func parseRinka() {
 			return
 		}
 
-		// Download that URL:
-		postReader, err := downloadAsReader(link)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-
-		// Load the HTML document of post
-		postDoc, err := goquery.NewDocumentFromReader(postReader)
+		// Get post's content as Goquery Document:
+		postDoc, err := downloadAsGoqueryDocument(link)
 		if err != nil {
 			fmt.Println(err)
 			return
@@ -111,6 +97,8 @@ func parseRinka() {
 			arr := regexRinkaPrice.FindStringSubmatch(tmpStr)
 			if len(arr) == 2 {
 				price, _ = strconv.Atoi(arr[1])
+			} else if strings.Contains(tmpStr, "Nenurodyta") {
+				price = -1 // so it gets ignored
 			}
 		}
 

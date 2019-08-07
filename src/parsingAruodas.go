@@ -12,15 +12,8 @@ func parseAruodas() {
 
 	url := "https://m.aruodas.lt/?obj=4&FRegion=461&FDistrict=1&FOrder=AddDate&from_search=1&detailed_search=1&FShowOnly=FOwnerDbId0%2CFOwnerDbId1&act=search"
 
-	// Get HTML:
-	reader, err := downloadAsReader(url)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	// Load the HTML document
-	doc, err := goquery.NewDocumentFromReader(reader)
+	// Get content as Goquery Document:
+	doc, err := downloadAsGoqueryDocument(url)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -42,15 +35,8 @@ func parseAruodas() {
 			return
 		}
 
-		// Download that URL:
-		postReader, err := downloadAsReader(link)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-
-		// Load the HTML document of post
-		postDoc, err := goquery.NewDocumentFromReader(postReader)
+		// Get post's content as Goquery Document:
+		postDoc, err := downloadAsGoqueryDocument(link)
 		if err != nil {
 			fmt.Println(err)
 			return
