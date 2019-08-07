@@ -2,16 +2,12 @@ package main
 
 import (
 	"fmt"
-	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/PuerkitoBio/goquery"
 )
-
-const urlDomoplius = "https://m.domoplius.lt/skelbimai/butai?action_type=3&address_1=461&sell_price_from=&sell_price_to=&qt="
 
 var regexDomopliusExtractNumberMap = regexp.MustCompile(`(\w+)='([^']+)'`)
 var regexDomopliusExtractNumberSeq = regexp.MustCompile(`document\.write\(([\w+]+)\);`)
@@ -19,26 +15,17 @@ var regexDomopliusExtractFloors = regexp.MustCompile(`(\d+), (\d+) `)
 
 func parseDomoplius() {
 
-	// Run 'parseDomoplius' over and over again:
-	defer func() {
-		time.Sleep(3 * time.Minute)
-		parseDomoplius()
-	}()
+	url := "https://m.domoplius.lt/skelbimai/butai?action_type=3&address_1=461&sell_price_from=&sell_price_to=&qt="
 
 	// Get HTML:
-	res, err := http.Get(urlDomoplius)
+	reader, err := downloadAsReader(url)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	defer res.Body.Close()
-	if res.StatusCode != 200 {
-		fmt.Printf("status code error: %d %s", res.StatusCode, res.Status)
-		return
-	}
 
 	// Load the HTML document
-	doc, err := goquery.NewDocumentFromReader(res.Body)
+	doc, err := goquery.NewDocumentFromReader(reader)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -61,25 +48,21 @@ func parseDomoplius() {
 		}
 
 		// Download that URL:
-		postRes, err := http.Get(link)
+		postReader, err := downloadAsReader(link)
 		if err != nil {
 			fmt.Println(err)
-			return
-		}
-		defer postRes.Body.Close()
-		if postRes.StatusCode != 200 {
-			fmt.Printf("status code error: %d %s", postRes.StatusCode, postRes.Status)
 			return
 		}
 
 		// Load the HTML document of post
-		postDoc, err := goquery.NewDocumentFromReader(postRes.Body)
+		postDoc, err := goquery.NewDocumentFromReader(postReader)
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
 
-		// Store variables here.
+		//-------------------------------------------------
+		// Define variables:
 		var phone, descr, addr, heating, tmpStr string
 		var floor, floorTotal, area, price, rooms, year int
 

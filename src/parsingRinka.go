@@ -2,41 +2,28 @@ package main
 
 import (
 	"fmt"
-	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/PuerkitoBio/goquery"
 )
-
-const urlRinka = "https://www.rinka.lt/nekilnojamojo-turto-skelbimai/butu-nuoma?filter%5BKainaForAll%5D%5Bmin%5D=&filter%5BKainaForAll%5D%5Bmax%5D=&filter%5BNTnuomakambariuskaiciusButai%5D%5Bmin%5D=&filter%5BNTnuomakambariuskaiciusButai%5D%5Bmax%5D=&filter%5BNTnuomabendrasplotas%5D%5Bmin%5D=&filter%5BNTnuomabendrasplotas%5D%5Bmax%5D=&filter%5BNTnuomastatybosmetai%5D%5Bmin%5D=&filter%5BNTnuomastatybosmetai%5D%5Bmax%5D=&filter%5BNTnuomaaukstuskaicius%5D%5Bmin%5D=&filter%5BNTnuomaaukstuskaicius%5D%5Bmax%5D=&filter%5BNTnuomaaukstas%5D%5Bmin%5D=&filter%5BNTnuomaaukstas%5D%5Bmax%5D=&cities%5B0%5D=2&cities%5B1%5D=3"
 
 var regexRinkaPrice = regexp.MustCompile(`Kaina: ([\d,]+),\d+ €`)
 
 func parseRinka() {
 
-	// Run 'parseRinka' over and over again:
-	defer func() {
-		time.Sleep(3 * time.Minute)
-		parseRinka()
-	}()
+	url := "https://www.rinka.lt/nekilnojamojo-turto-skelbimai/butu-nuoma?filter%5BKainaForAll%5D%5Bmin%5D=&filter%5BKainaForAll%5D%5Bmax%5D=&filter%5BNTnuomakambariuskaiciusButai%5D%5Bmin%5D=&filter%5BNTnuomakambariuskaiciusButai%5D%5Bmax%5D=&filter%5BNTnuomabendrasplotas%5D%5Bmin%5D=&filter%5BNTnuomabendrasplotas%5D%5Bmax%5D=&filter%5BNTnuomastatybosmetai%5D%5Bmin%5D=&filter%5BNTnuomastatybosmetai%5D%5Bmax%5D=&filter%5BNTnuomaaukstuskaicius%5D%5Bmin%5D=&filter%5BNTnuomaaukstuskaicius%5D%5Bmax%5D=&filter%5BNTnuomaaukstas%5D%5Bmin%5D=&filter%5BNTnuomaaukstas%5D%5Bmax%5D=&cities%5B0%5D=2&cities%5B1%5D=3"
 
 	// Get HTML:
-	res, err := http.Get(urlRinka)
+	reader, err := downloadAsReader(url)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	defer res.Body.Close()
-	if res.StatusCode != 200 {
-		fmt.Printf("status code error: %d %s", res.StatusCode, res.Status)
-		return
-	}
 
 	// Load the HTML document
-	doc, err := goquery.NewDocumentFromReader(res.Body)
+	doc, err := goquery.NewDocumentFromReader(reader)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -59,19 +46,14 @@ func parseRinka() {
 		}
 
 		// Download that URL:
-		postRes, err := http.Get(link)
+		postReader, err := downloadAsReader(link)
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
-		defer postRes.Body.Close()
-		if postRes.StatusCode != 200 {
-			fmt.Printf("status code error: %d %s", postRes.StatusCode, postRes.Status)
-			return
-		}
 
 		// Load the HTML document of post
-		postDoc, err := goquery.NewDocumentFromReader(postRes.Body)
+		postDoc, err := goquery.NewDocumentFromReader(postReader)
 		if err != nil {
 			fmt.Println(err)
 			return
@@ -80,6 +62,7 @@ func parseRinka() {
 		// Extract details element
 		detailsElement := postDoc.Find("#adFullBlock")
 
+		//-------------------------------------------------
 		// Define variables:
 		var phone, descr, addr, heating, tmpStr string
 		var floor, floorTotal, area, price, rooms, year int

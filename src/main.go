@@ -36,11 +36,26 @@ func main() {
 	databaseConnect()
 	defer db.Close()
 
-	// Start Telegrambot API
+	// Setup Telegrambot API
+	poller := &tb.LongPoller{Timeout: 15 * time.Second}
+	middlewarePoller := tb.NewMiddlewarePoller(poller, func(upd *tb.Update) bool {
+
+		// We only care about messages
+		// TODO: Does this IF statement even needed?
+		if upd.Message == nil {
+			return false
+		}
+
+		// Make sure user is in our database
+		_init(upd.Message.Sender)
+
+		// Always accept all updates from Telegram
+		return true
+	})
 	var err error
 	bot, err = tb.NewBot(tb.Settings{
 		Token: readAPIFromFile(), URL: "",
-		Poller: &tb.LongPoller{Timeout: 10 * time.Second},
+		Poller: middlewarePoller,
 	})
 	if err != nil {
 		fmt.Println(err)
@@ -48,107 +63,119 @@ func main() {
 	}
 
 	bot.Handle("/help", func(m *tb.Message) {
-		_init(m.Sender)
 		sendHelpText(m.Sender)
 		sendUserInfo(m.Sender)
 	})
 	bot.Handle("/config", func(m *tb.Message) {
-		_init(m.Sender)
-
-		msg := strings.ToLower(strings.TrimSpace(m.Text))
-
-		// Check if default:
-		if msg == "/config" {
-			bot.Send(m.Sender, configText, tb.ModeMarkdown)
-			return
-		}
-
-		// Check if input is valid (using regex)
-		if !validConfig.MatchString(msg) {
-			bot.Send(m.Sender, configErrorText, tb.ModeMarkdown)
-			return
-		}
-
-		// Extract variables from message (using regex)
-		extracted := validConfig.FindStringSubmatch(m.Text)
-		priceFrom, _ := strconv.Atoi(extracted[1])
-		priceTo, _ := strconv.Atoi(extracted[2])
-		roomsFrom, _ := strconv.Atoi(extracted[3])
-		roomsTo, _ := strconv.Atoi(extracted[4])
-		yearFrom, _ := strconv.Atoi(extracted[5])
-
-		// Check values and logic:
-		currentTime := time.Now()
-		valuesCheck := priceFrom <= 0 || priceTo <= 0 || roomsFrom <= 0 || roomsTo <= 0 || yearFrom < 1800 || yearFrom > currentTime.Year()
-		logicCheck := priceFrom > priceTo || roomsFrom > roomsTo
-		if valuesCheck || logicCheck {
-			bot.Send(m.Sender, configErrorText, tb.ModeMarkdown)
-			return
-		}
-
-		// All good, so update in DB:
-		if !databaseSetConfig(m.Sender.ID, priceFrom, priceTo, roomsFrom, roomsTo, yearFrom) {
-			bot.Send(m.Sender, errorText, tb.ModeMarkdown)
-			return
-		}
-
-		bot.Send(m.Sender, "Nustatymai atnaujinti ir pranešimai įjungti!")
-		sendUserInfo(m.Sender)
+		updateSettings(m.Sender, m.Text)
 	})
 	bot.Handle("/enable", func(m *tb.Message) {
-		_init(m.Sender)
-
-		if databaseSetEnableForUser(m.Sender.ID, 1) {
-			bot.Send(m.Sender, "Pranešimai įjungti! Naudokite komandą /disable kad juos išjungti.", tb.ModeMarkdown)
-			sendUserInfo(m.Sender)
-		} else {
-			bot.Send(m.Sender, errorText)
-		}
+		enableNotifications(m.Sender)
 	})
 	bot.Handle("/disable", func(m *tb.Message) {
-		_init(m.Sender)
-
-		if databaseSetEnableForUser(m.Sender.ID, 0) {
-			bot.Send(m.Sender, "Pranešimai išjungti! Naudokite komandą /enable kad juos įjungti.", tb.ModeMarkdown)
-			sendUserInfo(m.Sender)
-		} else {
-			bot.Send(m.Sender, errorText)
-		}
+		disableNotifications(m.Sender)
 	})
 	bot.Handle("/stats", func(m *tb.Message) {
-		_init(m.Sender)
-
-		s := databaseGetStatistics()
-
-		msg := "Šiek tiek info iš boto duombazės:\n"
-		msg += "» *Naudotojų kiekis:* `" + strconv.Itoa(s.usersCount) + " (iš jų " + strconv.Itoa(s.enabledUsersCount) + " įsijungę pranešimus)`\n"
-		msg += "» *Nuscreipinta skelbimų:* `" + strconv.Itoa(s.postsCount) + "`\n"
-		msg += "» *Vidutiniai kainų nustatymai:* `Nuo " + strconv.Itoa(s.averagePriceFrom) + "€ iki " + strconv.Itoa(s.averagePriceTo) + "€`\n"
-		msg += "» *Vidutiniai kambarių sk. nustatymai:* `Nuo " + strconv.Itoa(s.averageRoomsFrom) + " iki " + strconv.Itoa(s.averageRoomsTo) + "`"
-
-		bot.Send(m.Sender, msg, tb.ModeMarkdown)
+		sendStats(m.Sender)
 	})
 
 	// Start parsers in separate goroutines:
 	go func() {
-		// Wait few seconds so Telegram bot starts up
-		time.Sleep(5 * time.Second)
-
-		go parseAruodas()
-		go parseSkelbiu()
-		go parseDomoplius()
-		go parseAlio()
-		go parseRinka()
-		go parseKampas()
-		go parseNuomininkai()
-
+		time.Sleep(5 * time.Second) // Wait few seconds so Telegram bot starts up
+		for {
+			go parseAruodas()
+			go parseSkelbiu()
+			go parseDomoplius()
+			go parseAlio()
+			go parseRinka()
+			go parseKampas()
+			go parseNuomininkai()
+			time.Sleep(3 * time.Minute) // Run those functions every 3 minutes
+		}
 	}()
 
 	// Start bot:
 	bot.Start()
 }
 
-// _init ensures that sender is in DB
+func updateSettings(sender *tb.User, message string) {
+	msg := strings.ToLower(strings.TrimSpace(message))
+
+	// Check if default:
+	if msg == "/config" {
+		bot.Send(sender, configText, tb.ModeMarkdown)
+		return
+	}
+
+	// Check if input is valid (using regex)
+	if !validConfig.MatchString(msg) {
+		bot.Send(sender, configErrorText, tb.ModeMarkdown)
+		return
+	}
+
+	// Extract variables from message (using regex)
+	extracted := validConfig.FindStringSubmatch(msg)
+	priceFrom, _ := strconv.Atoi(extracted[1])
+	priceTo, _ := strconv.Atoi(extracted[2])
+	roomsFrom, _ := strconv.Atoi(extracted[3])
+	roomsTo, _ := strconv.Atoi(extracted[4])
+	yearFrom, _ := strconv.Atoi(extracted[5])
+
+	// Check values and logic:
+	currentTime := time.Now()
+	valuesCheck := priceFrom <= 0 || priceTo <= 0 || roomsFrom <= 0 || roomsTo <= 0 || yearFrom < 1800 || yearFrom > currentTime.Year()
+	logicCheck := priceFrom > priceTo || roomsFrom > roomsTo
+	if valuesCheck || logicCheck {
+		bot.Send(sender, configErrorText, tb.ModeMarkdown)
+		return
+	}
+
+	// All good, so update in DB:
+	if !databaseSetConfig(sender.ID, priceFrom, priceTo, roomsFrom, roomsTo, yearFrom) {
+		bot.Send(sender, errorText, tb.ModeMarkdown)
+		return
+	}
+
+	bot.Send(sender, "Nustatymai atnaujinti ir pranešimai įjungti!")
+	sendUserInfo(sender)
+}
+
+func enableNotifications(sender *tb.User) {
+	if databaseSetEnableForUser(sender.ID, 1) {
+		bot.Send(sender, "Pranešimai įjungti! Naudokite komandą /disable kad juos išjungti.", tb.ModeMarkdown)
+		sendUserInfo(sender)
+	} else {
+		bot.Send(sender, errorText)
+	}
+}
+
+func disableNotifications(sender *tb.User) {
+	if databaseSetEnableForUser(sender.ID, 0) {
+		bot.Send(sender, "Pranešimai išjungti! Naudokite komandą /enable kad juos įjungti.", tb.ModeMarkdown)
+		sendUserInfo(sender)
+	} else {
+		bot.Send(sender, errorText)
+	}
+}
+
+func sendStats(sender *tb.User) {
+	s := databaseGetStatistics()
+
+	msg := fmt.Sprintf(
+		`Boto statistinė informacija:
+» *Naudotojų kiekis:* %d (iš jų %d įjungę pranešimus)
+» *Nuscreipinta skelbimų:* %d
+» *Vidutiniai kainų nustatymai:* Nuo %d€ iki %d€
+» *Vidutiniai kambarių sk. nustatymai:* Nuo %d iki %d`,
+		s.usersCount, s.enabledUsersCount,
+		s.postsCount,
+		s.averagePriceFrom, s.averagePriceTo,
+		s.averageRoomsFrom, s.averageRoomsTo)
+
+	bot.Send(sender, msg, tb.ModeMarkdown)
+}
+
+// execute this function on every command/message from user
 func _init(sender *tb.User) {
 	if !databaseAddNewUser(sender.ID) {
 		bot.Send(sender, errorText)

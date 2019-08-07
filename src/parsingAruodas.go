@@ -2,38 +2,25 @@ package main
 
 import (
 	"fmt"
-	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/PuerkitoBio/goquery"
 )
 
-const urlAruodas = "https://m.aruodas.lt/?obj=4&FRegion=461&FDistrict=1&FOrder=AddDate&from_search=1&detailed_search=1&FShowOnly=FOwnerDbId0%2CFOwnerDbId1&act=search"
-
 func parseAruodas() {
 
-	// Run 'parseAruodas' over and over again:
-	defer func() {
-		time.Sleep(3 * time.Minute)
-		parseAruodas()
-	}()
+	url := "https://m.aruodas.lt/?obj=4&FRegion=461&FDistrict=1&FOrder=AddDate&from_search=1&detailed_search=1&FShowOnly=FOwnerDbId0%2CFOwnerDbId1&act=search"
 
 	// Get HTML:
-	res, err := http.Get(urlAruodas)
+	reader, err := downloadAsReader(url)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	defer res.Body.Close()
-	if res.StatusCode != 200 {
-		fmt.Printf("status code error: %d %s", res.StatusCode, res.Status)
-		return
-	}
 
 	// Load the HTML document
-	doc, err := goquery.NewDocumentFromReader(res.Body)
+	doc, err := goquery.NewDocumentFromReader(reader)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -56,25 +43,21 @@ func parseAruodas() {
 		}
 
 		// Download that URL:
-		postRes, err := http.Get(link)
+		postReader, err := downloadAsReader(link)
 		if err != nil {
 			fmt.Println(err)
-			return
-		}
-		defer postRes.Body.Close()
-		if postRes.StatusCode != 200 {
-			fmt.Printf("status code error: %d %s", postRes.StatusCode, postRes.Status)
 			return
 		}
 
 		// Load the HTML document of post
-		postDoc, err := goquery.NewDocumentFromReader(postRes.Body)
+		postDoc, err := goquery.NewDocumentFromReader(postReader)
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
 
-		// Store variables here.
+		//-------------------------------------------------
+		// Define variables:
 		var phone, descr, addr, heating, tmpStr string
 		var floor, floorTotal, area, price, rooms, year int
 

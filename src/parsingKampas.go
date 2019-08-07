@@ -3,35 +3,16 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"strconv"
 	"strings"
-	"time"
 )
-
-const urlKampas = "https://www.kampas.lt/api/classifieds/search-new?query={%22municipality%22%3A%2258%22%2C%22settlement%22%3A19220%2C%22page%22%3A1%2C%22sort%22%3A%22new%22%2C%22section%22%3A%22bustas-nuomai%22%2C%22type%22%3A%22flat%22}"
 
 func parseKampas() {
 
-	// Run 'parseKampas' over and over again:
-	defer func() {
-		time.Sleep(3 * time.Minute)
-		parseKampas()
-	}()
+	url := "https://www.kampas.lt/api/classifieds/search-new?query={%22municipality%22%3A%2258%22%2C%22settlement%22%3A19220%2C%22page%22%3A1%2C%22sort%22%3A%22new%22%2C%22section%22%3A%22bustas-nuomai%22%2C%22type%22%3A%22flat%22}"
 
 	// Get HTML:
-	res, err := http.Get(urlKampas)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	defer res.Body.Close()
-	if res.StatusCode != 200 {
-		fmt.Printf("status code error: %d %s", res.StatusCode, res.Status)
-		return
-	}
-	content, err := ioutil.ReadAll(res.Body)
+	content, err := downloadAsBytes(url)
 	if err != nil {
 		fmt.Println(err)
 		return

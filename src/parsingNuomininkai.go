@@ -2,38 +2,25 @@ package main
 
 import (
 	"fmt"
-	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/PuerkitoBio/goquery"
 )
 
-const urlNuomininkai = "https://nuomininkai.lt/paieska/?propery_type=butu-nuoma&propery_contract_type=&propery_location=461&imic_property_district=&new_quartals=&min_price=&max_price=&min_price_meter=&max_price_meter=&min_area=&max_area=&rooms_from=&rooms_to=&high_from=&high_to=&floor_type=&irengimas=&building_type=&house_year_from=&house_year_to=&zm_skaicius=&lot_size_from=&lot_size_to=&by_date="
-
 func parseNuomininkai() {
 
-	// Run 'parseNuomininkai' over and over again:
-	defer func() {
-		time.Sleep(3 * time.Minute)
-		parseNuomininkai()
-	}()
+	url := "https://nuomininkai.lt/paieska/?propery_type=butu-nuoma&propery_contract_type=&propery_location=461&imic_property_district=&new_quartals=&min_price=&max_price=&min_price_meter=&max_price_meter=&min_area=&max_area=&rooms_from=&rooms_to=&high_from=&high_to=&floor_type=&irengimas=&building_type=&house_year_from=&house_year_to=&zm_skaicius=&lot_size_from=&lot_size_to=&by_date="
 
 	// Get HTML:
-	res, err := http.Get(urlNuomininkai)
+	reader, err := downloadAsReader(url)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	defer res.Body.Close()
-	if res.StatusCode != 200 {
-		fmt.Printf("status code error: %d %s", res.StatusCode, res.Status)
-		return
-	}
 
 	// Load the HTML document
-	doc, err := goquery.NewDocumentFromReader(res.Body)
+	doc, err := goquery.NewDocumentFromReader(reader)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -56,24 +43,20 @@ func parseNuomininkai() {
 		}
 
 		// Download that URL:
-		postRes, err := http.Get(link)
+		postReader, err := downloadAsReader(link)
 		if err != nil {
 			fmt.Println(err)
-			return
-		}
-		defer postRes.Body.Close()
-		if postRes.StatusCode != 200 {
-			fmt.Printf("status code error: %d %s", postRes.StatusCode, postRes.Status)
 			return
 		}
 
 		// Load the HTML document of post
-		postDoc, err := goquery.NewDocumentFromReader(postRes.Body)
+		postDoc, err := goquery.NewDocumentFromReader(postReader)
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
 
+		//-------------------------------------------------
 		// Define variables:
 		var phone, descr, addr, tmpStr string
 		var floor, floorTotal, area, price, rooms, year int
