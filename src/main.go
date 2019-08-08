@@ -15,16 +15,20 @@ import (
 
 var bot *tb.Bot
 
-const helpText = "*Galimos komandos:*\n" +
-	"/help - Pagalba\n" +
-	"/config - Konfiguruoti pranešimus\n" +
-	"/enable - Įjungti pranešimus\n" +
-	"/disable - Išjungti pranešimus\n" +
-	"/stats - Boto statistika\n\n" +
-	"*Informacija:*\n" +
-	"Tai yra botas (arba tiesiog _programa_), kuris skenuoja įvairius populiariausius būtų nuomos portalus ir ieško būtų Vilniuje, kuriems (potencialiai) nėra taikomas tarpininkavimo ar kažkoks kitas absurdiškas mokestis. Jeigu kyla klausimų arba pasitaikė pranešimas, kuriame yra tarpininkavimo mokestis - chat grupė https://t.me/joinchat/G2hnjQ80K5qZaeHTEOFrDA"
+const helpText = `
+*Galimos komandos:*
+/help - Pagalba
+/config - Konfiguruoti pranešimus
+/enable - Įjungti pranešimus
+/disable - Išjungti pranešimus
+/stats - Boto statistika
 
-const errorText = "Įvyko duomenų bazės klaida! Praneškite apie tai chat grupėje https://t.me/joinchat/G2hnjQ80K5qZaeHTEOFrDA"
+*Aprašymas:*
+Tai yra botas (arba tiesiog _programa_), kuris skenuoja įvairius populiariausius būtų nuomos portalus ir ieško būtų Vilniuje, kuriems (potencialiai) nėra taikomas tarpininkavimo ar kažkoks kitas absurdiškas mokestis. Jeigu kyla klausimų arba pasitaikė pranešimas, kuriame yra tarpininkavimo mokestis - chat grupė https://t.me/joinchat/G2hnjQ80K5qZaeHTEOFrDA
+`
+
+const errorText = `Įvyko duomenų bazės klaida! Praneškite apie tai chat grupėje https://t.me/joinchat/G2hnjQ80K5qZaeHTEOFrDA`
+
 const configText = "Naudokite tokį formatą:\n\n```\n/config <kaina_nuo> <kaina_iki> <kambariai_nuo> <kambariai_iki> <metai_nuo>\n```\nPavyzdys:\n```\n/config 200 330 1 2 2000\n```"
 const configErrorText = "Neteisinga įvestis! " + configText
 
@@ -161,8 +165,8 @@ func disableNotifications(sender *tb.User) {
 func sendStats(sender *tb.User) {
 	s := databaseGetStatistics()
 
-	msg := fmt.Sprintf(
-		`Boto statistinė informacija:
+	msg := fmt.Sprintf(`
+Boto statistinė informacija:
 » *Naudotojų kiekis:* %d (iš jų %d įjungę pranešimus)
 » *Nuscreipinta skelbimų:* %d
 » *Vidutiniai kainų nustatymai:* Nuo %d€ iki %d€
@@ -202,13 +206,17 @@ func sendUserInfo(sender *tb.User) {
 		status = "Išjungti"
 	}
 
-	msg := "Jūsų aktyvūs nustatymai:\n"
-	msg += "» *Pranešimai:* `" + status + "`\n"
-	msg += "» *Kaina nuo:* `" + strconv.Itoa(user.priceFrom) + "`\n"
-	msg += "» *Kaina iki:* `" + strconv.Itoa(user.priceTo) + "`\n"
-	msg += "» *Kambarių sk. nuo:* `" + strconv.Itoa(user.roomsFrom) + "`\n"
-	msg += "» *Kambarių sk. iki:* `" + strconv.Itoa(user.roomsTo) + "`\n"
-	msg += "» *Metai nuo:* `" + strconv.Itoa(user.yearFrom) + "`\n"
+	msg := fmt.Sprintf(`
+Jūsų aktyvūs nustatymai:
+» *Pranešimai:* %s
+» *Kaina:* Nuo %d€ iki %d€
+» *Kambarių sk.:* Nuo %d iki %d
+» *Metai nuo:* %d`,
+		status,
+		user.priceFrom, user.priceTo,
+		user.roomsFrom, user.roomsTo,
+		user.yearFrom)
+
 	bot.Send(sender, msg, tb.ModeMarkdown)
 
 }
