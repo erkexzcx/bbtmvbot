@@ -107,41 +107,43 @@ func processPost(p post) {
 }
 
 func getCompiledMessage(p post, ID int64) string {
-	message := strconv.FormatInt(ID, 10) + ". " + p.url + "\n"
+	var b strings.Builder
+
+	fmt.Fprintf(&b, "%d. %s\n", ID, p.url)
 
 	if p.phone != "" {
-		message += "» *Tel. numeris:* [" + p.phone + "](tel:" + p.phone + ")\n"
+		fmt.Fprintf(&b, "» *Tel. numeris:* [%s](tel:%s)\n", p.phone, p.phone)
 	}
 
 	if p.address != "" {
-		message += "» *Adresas:* [" + p.address + "](https://maps.google.com/?q=" + url.QueryEscape(p.address) + ")\n"
+		fmt.Fprintf(&b, "» *Adresas:* [%s](https://maps.google.com/?q=%s)\n", p.address, url.QueryEscape(p.address))
 	}
 
 	if p.price != 0 && p.area != 0 {
-		message += "» *Kaina:* `" + strconv.Itoa(p.price) + "€ (" + strconv.Itoa(int(p.price/p.area)) + "€/m²)`\n"
+		fmt.Fprintf(&b, "» *Kaina:* `%d€ (%d€/m²)`\n", p.price, (p.price / p.area))
 	} else if p.price != 0 {
-		message += "» *Kaina:* `" + strconv.Itoa(p.price) + "€`\n"
+		fmt.Fprintf(&b, "» *Kaina:* `%d€`\n", p.price)
 	}
 
 	if p.rooms != 0 && p.area != 0 {
-		message += "» *Kambariai:* `" + strconv.Itoa(p.rooms) + " (" + strconv.Itoa(p.area) + "m²)`\n"
+		fmt.Fprintf(&b, "» *Kambariai:* `%d (%dm²)`\n", p.rooms, p.area)
 	} else if p.rooms != 0 {
-		message += "» *Kambariai:* `" + strconv.Itoa(p.rooms) + "`\n"
+		fmt.Fprintf(&b, "» *Kambariai:* `%d`\n", p.rooms)
 	}
 
 	if p.year != 0 {
-		message += "» *Statybos metai:* `" + strconv.Itoa(p.year) + "`\n"
+		fmt.Fprintf(&b, "» *Statybos metai:* `%d`\n", p.year)
 	}
 
 	if p.heating != "" {
-		message += "» *Šildymo tipas:* `" + p.heating + "`\n"
+		fmt.Fprintf(&b, "» *Šildymo tipas:* `%s`\n", p.heating)
 	}
 
 	if p.floor != 0 && p.floorTotal != 0 {
-		message += "» *Aukštas:* `" + strconv.Itoa(p.floor) + "/" + strconv.Itoa(p.floorTotal) + "`\n"
+		fmt.Fprintf(&b, "» *Aukštas:* `%d/%d`\n", p.floor, p.floorTotal)
 	} else if p.floor != 0 {
-		message += "» *Aukštas:* `" + strconv.Itoa(p.floor) + "`\n"
+		fmt.Fprintf(&b, "» *Aukštas:* `%d`\n", p.floor)
 	}
 
-	return strings.TrimSpace(message)
+	return b.String()
 }
