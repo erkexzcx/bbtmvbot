@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -33,6 +34,8 @@ const configText = "Naudokite tokį formatą:\n\n```\n/config <kaina_nuo> <kaina
 const configErrorText = "Neteisinga įvestis! " + configText
 
 var validConfig = regexp.MustCompile(`^\/config (\d{1,5}) (\d{1,5}) (\d{1,2}) (\d{1,2}) (\d{4})$`)
+
+var telegramMux sync.Mutex
 
 func main() {
 
@@ -107,13 +110,13 @@ func updateSettings(sender *tb.User, message string) {
 
 	// Check if default:
 	if msg == "/config" {
-		bot.Send(sender, configText, tb.ModeMarkdown)
+		sendTo(sender, configText)
 		return
 	}
 
 	// Check if input is valid (using regex)
 	if !validConfig.MatchString(msg) {
-		bot.Send(sender, configErrorText, tb.ModeMarkdown)
+		sendTo(sender, configErrorText)
 		return
 	}
 
@@ -130,35 +133,35 @@ func updateSettings(sender *tb.User, message string) {
 	valuesCheck := priceFrom <= 0 || priceTo <= 0 || roomsFrom <= 0 || roomsTo <= 0 || yearFrom < 1800 || yearFrom > currentTime.Year()
 	logicCheck := priceFrom > priceTo || roomsFrom > roomsTo
 	if valuesCheck || logicCheck {
-		bot.Send(sender, configErrorText, tb.ModeMarkdown)
+		sendTo(sender, configErrorText)
 		return
 	}
 
 	// All good, so update in DB:
 	if !databaseSetConfig(sender.ID, priceFrom, priceTo, roomsFrom, roomsTo, yearFrom) {
-		bot.Send(sender, errorText, tb.ModeMarkdown)
+		sendTo(sender, errorText)
 		return
 	}
 
-	bot.Send(sender, "Nustatymai atnaujinti ir pranešimai įjungti!")
+	sendTo(sender, "Nustatymai atnaujinti ir pranešimai įjungti!")
 	sendUserInfo(sender)
 }
 
 func enableNotifications(sender *tb.User) {
 	if databaseSetEnableForUser(sender.ID, 1) {
-		bot.Send(sender, "Pranešimai įjungti! Naudokite komandą /disable kad juos išjungti.", tb.ModeMarkdown)
+		sendTo(sender, "Pranešimai įjungti! Naudokite komandą /disable kad juos išjungti.")
 		sendUserInfo(sender)
 	} else {
-		bot.Send(sender, errorText)
+		sendTo(sender, errorText)
 	}
 }
 
 func disableNotifications(sender *tb.User) {
 	if databaseSetEnableForUser(sender.ID, 0) {
-		bot.Send(sender, "Pranešimai išjungti! Naudokite komandą /enable kad juos įjungti.", tb.ModeMarkdown)
+		sendTo(sender, "Pranešimai išjungti! Naudokite komandą /enable kad juos įjungti.")
 		sendUserInfo(sender)
 	} else {
-		bot.Send(sender, errorText)
+		sendTo(sender, errorText)
 	}
 }
 
@@ -176,19 +179,19 @@ Boto statistinė informacija:
 		s.averagePriceFrom, s.averagePriceTo,
 		s.averageRoomsFrom, s.averageRoomsTo)
 
-	bot.Send(sender, msg, tb.ModeMarkdown)
+	sendTo(sender, msg)
 }
 
 // execute this function on every command/message from user
 func _init(sender *tb.User) {
 	if !databaseAddNewUser(sender.ID) {
-		bot.Send(sender, errorText)
+		sendTo(sender, errorText)
 	}
 }
 
 // sendHelpText sends help text to the user
 func sendHelpText(sender *tb.User) {
-	bot.Send(sender, helpText, tb.ModeMarkdown)
+	sendTo(sender, helpText)
 }
 
 // sendUserInfo sends user info (from DB) to the user
@@ -197,7 +200,7 @@ func sendUserInfo(sender *tb.User) {
 	// Get user data from DB:
 	user := databaseGetUser(sender.ID)
 	if user == nil {
-		bot.Send(sender, errorText)
+		sendTo(sender, errorText)
 		return
 	}
 
@@ -217,15 +220,18 @@ Jūsų aktyvūs nustatymai:
 		user.roomsFrom, user.roomsTo,
 		user.yearFrom)
 
-	bot.Send(sender, msg, tb.ModeMarkdown)
+	sendTo(sender, msg)
 
 }
 
-func sendTo(userID int, msg string) {
-	bot.Send(&tb.User{ID: userID}, msg, &tb.SendOptions{
+func sendTo(sender *tb.User, msg string) {
+	telegramMux.Lock()
+	bot.Send(sender, msg, &tb.SendOptions{
 		ParseMode:             "Markdown",
 		DisableWebPagePreview: true,
 	})
+	time.Sleep(30 * time.Millisecond) // See https://core.telegram.org/bots/faq#my-bot-is-hitting-limits-how-do-i-avoid-this
+	telegramMux.Unlock()
 }
 
 func readAPIFromFile() string {

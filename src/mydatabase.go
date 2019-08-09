@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	_ "github.com/mattn/go-sqlite3"
+	tb "gopkg.in/tucnak/telebot.v2"
 )
 
 // DbUser is here to store data about the user from DB
@@ -201,7 +202,7 @@ func databaseGetUsersAndSendThem(p post, postID int64) {
 		}
 
 		// Send to user:
-		sendTo(userID, compiledMessage)
+		sendTo(&tb.User{ID: userID}, compiledMessage)
 	}
 	err = rows.Err()
 	if err != nil {
