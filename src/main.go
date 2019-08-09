@@ -225,13 +225,15 @@ Jūsų aktyvūs nustatymai:
 }
 
 func sendTo(sender *tb.User, msg string) {
-	telegramMux.Lock()
-	bot.Send(sender, msg, &tb.SendOptions{
-		ParseMode:             "Markdown",
-		DisableWebPagePreview: true,
-	})
-	time.Sleep(30 * time.Millisecond) // See https://core.telegram.org/bots/faq#my-bot-is-hitting-limits-how-do-i-avoid-this
-	telegramMux.Unlock()
+	go func() {
+		telegramMux.Lock()
+		bot.Send(sender, msg, &tb.SendOptions{
+			ParseMode:             "Markdown",
+			DisableWebPagePreview: true,
+		})
+		time.Sleep(30 * time.Millisecond) // See https://core.telegram.org/bots/faq#my-bot-is-hitting-limits-how-do-i-avoid-this
+		telegramMux.Unlock()
+	}()
 }
 
 func readAPIFromFile() string {
