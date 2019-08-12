@@ -64,6 +64,9 @@ var exclusionKeywords = []string{
 	",yra vienkartinis agent",
 	" yra vienkartinis agent",
 	".yra vienkartinis agent",
+	"ui taikomas vienkartinis agent",
+	"ui taikomas agent",
+	"\ntaikomas tarpinink",
 }
 
 var regexExclusion1 = regexp.MustCompile(`(agenturos|agentūros|agenturinis|agentūrinis|tarpininkavimo) mokestis[\s:]{0,3}\d+`)
