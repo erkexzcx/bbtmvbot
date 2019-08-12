@@ -35,7 +35,10 @@ const configErrorText = "Neteisinga įvestis! " + configText
 
 var validConfig = regexp.MustCompile(`^\/config (\d{1,5}) (\d{1,5}) (\d{1,2}) (\d{1,2}) (\d{4})$`)
 
+// We need to ensure that only one goroutine at a time can access `sendTo` function:
 var telegramMux sync.Mutex
+var startTime time.Time
+var elapsedTime time.Duration
 
 func main() {
 
@@ -227,11 +230,19 @@ Jūsų aktyvūs nustatymai:
 func sendTo(sender *tb.User, msg string) {
 	go func() {
 		telegramMux.Lock()
+
+		startTime = time.Now()
 		bot.Send(sender, msg, &tb.SendOptions{
 			ParseMode:             "Markdown",
 			DisableWebPagePreview: true,
 		})
-		time.Sleep(30 * time.Millisecond) // See https://core.telegram.org/bots/faq#my-bot-is-hitting-limits-how-do-i-avoid-this
+		elapsedTime = time.Since(startTime)
+
+		// See https://core.telegram.org/bots/faq#my-bot-is-hitting-limits-how-do-i-avoid-this
+		if elapsedTime < 30*time.Millisecond {
+			time.Sleep(30*time.Millisecond - elapsedTime)
+		}
+
 		telegramMux.Unlock()
 	}()
 }
