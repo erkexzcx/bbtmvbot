@@ -26,12 +26,6 @@ Once you set-up bot, you should have your bot's Telegram **API key**.
 
 Installation will cover only Arch Linux, but it's basically the same for any other Linux distribution.
 
-Download project:
-```
-git clone https://github.com/erkexzcx/BBTMV-bot.git
-cd BBTMV-bot
-```
-
 Install required packages:
 ```
 pacman -S go sqlite
@@ -42,6 +36,12 @@ Then install required go dependencies using below commands:
 go get -u gopkg.in/tucnak/telebot.v2
 go get github.com/mattn/go-sqlite3
 go get github.com/PuerkitoBio/goquery
+```
+
+Then download the project:
+```
+git clone https://github.com/erkexzcx/BBTMV-bot.git
+cd BBTMV-bot
 ```
 
 Then create file `telegram.conf` and save your bot's Telegram **API key**:
@@ -64,7 +64,7 @@ And finally, run:
 ./main
 ```
 
-Time to time you wish to update this app. Pull latest changes & recompile:
+To update this app, simply pull latest changes & recompile:
 ```
 git pull
 go build src/*.go
