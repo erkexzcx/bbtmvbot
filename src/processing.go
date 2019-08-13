@@ -123,7 +123,7 @@ func getCompiledMessage(p post, ID int64) string {
 	}
 
 	if p.price != 0 && p.area != 0 {
-		fmt.Fprintf(&b, "» *Kaina:* `%d€ (%d€/m²)`\n", p.price, (p.price / p.area))
+		fmt.Fprintf(&b, "» *Kaina:* `%d€ (%.2f€/m²)`\n", p.price, float64(p.price)/float64(p.area))
 	} else if p.price != 0 {
 		fmt.Fprintf(&b, "» *Kaina:* `%d€`\n", p.price)
 	}
