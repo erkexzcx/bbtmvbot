@@ -64,6 +64,8 @@ var exclusionKeywords = []string{
 	",yra vienkartinis agent",
 	" yra vienkartinis agent",
 	".yra vienkartinis agent",
+	"\nyra vienkartinis agent",
+	"\nyra tarpininkavi",
 	"ui taikomas vienkartinis agent",
 	"ui taikomas agent",
 	"\ntaikomas tarpinink",
