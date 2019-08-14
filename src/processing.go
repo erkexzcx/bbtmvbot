@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
-	"strconv"
 	"strings"
 )
 
@@ -79,11 +78,14 @@ var regexExclusion1 = regexp.MustCompile(`(agenturos|agentūros|agenturinis|agen
 // Note that post is already checked against DB in parsing functions!
 func processPost(p post) {
 
+	// Add to database, so it won't be sent again:
+	insertedRowID := databaseAddPost(p)
+
 	// Check if description contains exclusion keyword
 	desc := strings.ToLower(p.description)
 	for _, v := range exclusionKeywords {
 		if strings.Contains(desc, v) {
-			fmt.Println(">> Excluding", p.url, "reason:", v)
+			fmt.Println(">> Excluding", insertedRowID, "reason:", v)
 			databaseAddPost(p)
 			return
 		}
@@ -92,7 +94,7 @@ func processPost(p post) {
 	// Passed blacklisted keywords test, so let's do some regex tests
 	arr := regexExclusion1.FindStringSubmatch(desc)
 	if len(arr) >= 1 {
-		fmt.Println(">> Excluding", p.url, "reason: /regex1/")
+		fmt.Println(">> Excluding", insertedRowID, "reason: /regex1/")
 		databaseAddPost(p)
 		return
 	}
@@ -103,18 +105,17 @@ func processPost(p post) {
 		return
 	}
 
-	// Add to database, so it won't be sent again:
-	insertedRowID := databaseAddPost(p)
-
 	// Send to users
 	databaseGetUsersAndSendThem(p, insertedRowID)
 
 	// Show debug info:
-	p.description = strconv.Itoa(len(p.description))
-	fmt.Println(p)
+	fmt.Printf(
+		"{ID:%d URL:%d Phon:%s Desc:%d Addr:%d Heat:%d Floor:%d FlTot:%d Area:%d Price:%d Room:%d Year:%d}\n",
+		insertedRowID, len(p.url), p.phone, len(p.description), len(p.address), len(p.heating), p.floor, p.floorTotal, p.area, p.price, p.rooms, p.year,
+	)
 }
 
-func getCompiledMessage(p post, ID int64) string {
+func (p *post) compileMessage(ID int64) string {
 	var b strings.Builder
 
 	fmt.Fprintf(&b, "%d. %s\n", ID, p.url)

@@ -191,8 +191,6 @@ func databaseGetUsersAndSendThem(p post, postID int64) {
 	}
 	defer rows.Close()
 
-	compiledMessage := getCompiledMessage(p, postID)
-
 	for rows.Next() {
 		var userID int
 		err = rows.Scan(&userID)
@@ -202,7 +200,7 @@ func databaseGetUsersAndSendThem(p post, postID int64) {
 		}
 
 		// Send to user:
-		sendTo(&tb.User{ID: userID}, compiledMessage)
+		sendTo(&tb.User{ID: userID}, p.compileMessage(postID))
 	}
 	err = rows.Err()
 	if err != nil {
