@@ -95,7 +95,6 @@ func processPost(p post) {
 	for _, v := range exclusionKeywords {
 		if strings.Contains(desc, v) {
 			fmt.Println(">> Excluding", insertedRowID, "reason:", v)
-			databaseAddPost(p)
 			return
 		}
 	}
@@ -104,7 +103,6 @@ func processPost(p post) {
 	arr := regexExclusion1.FindStringSubmatch(desc)
 	if len(arr) >= 1 {
 		fmt.Println(">> Excluding", insertedRowID, "reason: /regex1/")
-		databaseAddPost(p)
 		return
 	}
 
