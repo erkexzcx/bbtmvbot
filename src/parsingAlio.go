@@ -135,7 +135,7 @@ func parseAlio() {
 			year:        year,
 		}
 
-		go processPost(p)
+		go p.processPost()
 	})
 
 }

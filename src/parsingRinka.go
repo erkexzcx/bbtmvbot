@@ -130,7 +130,7 @@ func parseRinka() {
 			year:        year,
 		}
 
-		go processPost(p)
+		go p.processPost()
 	})
 
 }

@@ -129,7 +129,7 @@ func parseNuomininkai() {
 			year:        year,
 		}
 
-		go processPost(p)
+		go p.processPost()
 	})
 
 }

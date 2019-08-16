@@ -144,7 +144,7 @@ func parseDomoplius() {
 			year:        year,
 		}
 
-		go processPost(p)
+		go p.processPost()
 	})
 
 }

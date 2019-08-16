@@ -85,28 +85,31 @@ var exclusionKeywords = []string{
 var regexExclusion1 = regexp.MustCompile(`(agenturos|agentūros|agenturinis|agentūrinis|tarpininkavimo) mokestis[\s:]{0,3}\d+`)
 
 // Note that post is already checked against DB in parsing functions!
-func processPost(p post) {
+func (p post) processPost() {
 
-	// Add to database, so it won't be sent again:
+	// Add to database, so it won't be sent again
 	insertedRowID := databaseAddPost(p)
 
-	// Check if description contains exclusion keyword
+	// Convert description to lowercase and store here
 	desc := strings.ToLower(p.description)
+
+	// Check if description contains exclusion keyword
 	for _, v := range exclusionKeywords {
-		if strings.Contains(desc, v) {
-			fmt.Println(">> Excluding", insertedRowID, "reason:", v)
-			return
+		if !strings.Contains(desc, v) {
+			continue
 		}
+		fmt.Println(">> Excluding", insertedRowID, "reason:", v)
+		return
 	}
 
-	// Passed blacklisted keywords test, so let's do some regex tests
+	// Now check against regex rule
 	arr := regexExclusion1.FindStringSubmatch(desc)
 	if len(arr) >= 1 {
 		fmt.Println(">> Excluding", insertedRowID, "reason: /regex1/")
 		return
 	}
 
-	// Skip posts without price and let user know:
+	// Skip posts without price and let user know
 	if p.price == 0 {
 		fmt.Println(">> 0eur price", p.url)
 		return
@@ -115,7 +118,7 @@ func processPost(p post) {
 	// Send to users
 	databaseGetUsersAndSendThem(p, insertedRowID)
 
-	// Show debug info:
+	// Show debug info
 	fmt.Printf(
 		"{ID:%d URL:%d Phon:%s Desc:%d Addr:%d Heat:%d Floor:%d FlTot:%d Area:%d Price:%d Room:%d Year:%d}\n",
 		insertedRowID, len(p.url), p.phone, len(p.description), len(p.address), len(p.heating), p.floor, p.floorTotal, p.area, p.price, p.rooms, p.year,

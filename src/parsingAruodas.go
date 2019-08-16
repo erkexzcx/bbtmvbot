@@ -134,7 +134,7 @@ func parseAruodas() {
 			year:        year,
 		}
 
-		go processPost(p)
+		go p.processPost()
 	})
 
 }

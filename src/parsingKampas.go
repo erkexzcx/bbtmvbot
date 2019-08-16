@@ -49,7 +49,7 @@ func parseKampas() {
 			year:        interfaceToNumber(mypost["yearbuilt"]),
 		}
 
-		go processPost(p)
+		go p.processPost()
 	}
 
 }
