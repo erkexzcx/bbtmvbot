@@ -80,6 +80,7 @@ var exclusionKeywords = []string{
 	" yra sutarties sudarymo mokestis",
 	"\nyra sutarties sudarymo mokestis",
 	".yra sutarties sudarymo mokestis",
+	", taikomas tarpininkavimo mokest",
 }
 
 var regexExclusion1 = regexp.MustCompile(`(agenturos|agentūros|agenturinis|agentūrinis|tarpininkavimo) mokestis[\s:]{0,3}\d+`)
