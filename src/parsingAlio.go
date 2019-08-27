@@ -96,8 +96,7 @@ func parseAlio() {
 		if el.Length() != 0 {
 			tmpStr = el.Find(".a_line_val").Text()
 			tmpStr = strings.TrimSpace(tmpStr)
-			tmpStr = strings.ReplaceAll(tmpStr, " ", "")
-			tmpStr = strings.ReplaceAll(tmpStr, "€", "")
+			tmpStr = strings.Split(tmpStr, " ")[0]
 			if strings.Contains(tmpStr, ".") {
 				tmpStr = strings.Split(tmpStr, ".")[0]
 			}
