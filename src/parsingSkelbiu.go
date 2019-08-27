@@ -68,11 +68,11 @@ func parseSkelbiu() {
 
 		// Extract floor:
 		tmpStr = postDoc.Find(".detail > .title:contains(\"Aukštas:\")").Next().Text()
-		floorTotal, _ = strconv.Atoi(tmpStr)
+		floor, _ = strconv.Atoi(tmpStr)
 
 		// Extract floor total:
 		tmpStr = postDoc.Find(".detail > .title:contains(\"Aukštų skaičius:\")").Next().Text()
-		floor, _ = strconv.Atoi(tmpStr)
+		floorTotal, _ = strconv.Atoi(tmpStr)
 
 		// Extract area:
 		tmpStr = postDoc.Find(".detail > .title:contains(\"Plotas, m²:\")").Next().Text()
