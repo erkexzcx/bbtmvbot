@@ -43,6 +43,7 @@ var exclusionKeywords = []string{
 	"vienkartinis agenturos mokestis jei",
 	"vienkartinis agenturinis mokestis jei",
 	"vienkartinis tarpininkavimo mokestis jei",
+	"vienkartinis tarpininkavimo mokestis, jei",
 	" tiks, bus taikoma",
 	" tiks bus taikoma",
 	" tiks, yra taikoma",
