@@ -87,6 +87,7 @@ var exclusionKeywords = []string{
 }
 
 var regexExclusion1 = regexp.MustCompile(`(agenturos|agentūros|agenturinis|agentūrinis|tarpininkavimo) mokestis[\s:]{0,3}\d+`)
+var regexExclusion2 = regexp.MustCompile(`\d+\s{0,1}\S+ (agentur|agentūr|tarpinink|vienkart)\S+ (tarp|mokest)\S+`)
 
 // Note that post is already checked against DB in parsing functions!
 func (p post) processPost() {
@@ -106,10 +107,15 @@ func (p post) processPost() {
 		return
 	}
 
-	// Now check against regex rule
-	arr := regexExclusion1.FindStringSubmatch(desc)
-	if len(arr) >= 1 {
+	// Now check against regex rules
+	arr1 := regexExclusion1.FindStringSubmatch(desc)
+	if len(arr1) >= 1 {
 		fmt.Println(">> Excluding", insertedRowID, "reason: /regex1/")
+		return
+	}
+	arr2 := regexExclusion2.FindStringSubmatch(desc)
+	if len(arr2) >= 1 {
+		fmt.Println(">> Excluding", insertedRowID, "reason: /regex2/")
 		return
 	}
 
