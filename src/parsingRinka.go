@@ -23,7 +23,7 @@ func parseRinka() {
 	}
 
 	// For each post in page:
-	doc.Find("#adsBlock > .ad").Each(func(i int, s *goquery.Selection) {
+	doc.Find("[id=\"adsBlock\"]").First().Find(".ad").Each(func(i int, s *goquery.Selection) {
 
 		// Get postURL:
 		postUpstreamID, exists := s.Find("a[itemprop=\"url\"]").Attr("href")
