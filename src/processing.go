@@ -69,6 +69,7 @@ var exclusionKeywords = []string{
 	"\nyra vienkartinis agent",
 	"\nyra tarpininkavimo mokest",
 	"\nyra vienkartinis tarpinink",
+	"yra vienkartinis tarpinink",
 	"\ntaikomas tarpinink",
 	"\ntaikomas vienkartinis tarpinink",
 	"\ntaikomas vienkartinis agent",
