@@ -23,74 +23,21 @@ type post struct {
 
 // Must be lowercase!!!
 var exclusionKeywords = []string{
-	" bus taikomas vienkartinis agentūros mokestis",
-	" bus taikomas vienkartinis agentūrinis mokestis",
-	" bus taikomas vienkartinis agenturos mokestis",
-	" bus taikomas vienkartinis agenturinis mokestis",
-	" bus taikomas vienkartinis tarpininkavimo mokestis",
-	",bus taikomas vienkartinis agentūros mokestis",
-	",bus taikomas vienkartinis agentūrinis mokestis",
-	",bus taikomas vienkartinis agenturos mokestis",
-	",bus taikomas vienkartinis agenturinis mokestis",
-	",bus taikomas vienkartinis tarpininkavimo mokestis",
-	"yra taikomas vienkartinis agentūros mokestis",
-	"yra taikomas vienkartinis agentūrinis mokestis",
-	"yra taikomas vienkartinis agenturos mokestis",
-	"yra taikomas vienkartinis agenturinis mokestis",
-	"yra taikomas vienkartinis tarpininkavimo mokestis",
-	"vienkartinis agentūros mokestis jei",
-	"vienkartinis agentūrinis mokestis jei",
-	"vienkartinis agenturos mokestis jei",
-	"vienkartinis agenturinis mokestis jei",
-	"vienkartinis tarpininkavimo mokestis jei",
-	"vienkartinis tarpininkavimo mokestis, jei",
-	" tiks, bus taikoma",
-	" tiks bus taikoma",
-	" tiks, yra taikoma",
-	" tiks yra taikoma",
-	"taikomas vienkartinis tarpininkavimo mokestis",
-	"tiks vienkartinis tarpininkavimo mokestis",
-	"tarpininkavimo mokestis-",
-	"tarpininkavimo mokestis -",
 	"(yra mokestis)",
-	" bus imamas vienkartinis",
-	" bus imamas tarpininkavimo",
-	" bus taikomas vienkartinis",
-	".bus taikomas vienkartinis",
-	",bus taikomas vienkartinis",
-	" bus taikomas tarpininkavimo",
-	"mokestis (jei butas tiks)",
-	"ir imamas vienkartinis mokestis",
-	",yra vienkartinis agent",
-	" yra vienkartinis agent",
-	".yra vienkartinis agent",
-	",yra vienkartinis tarpinink",
-	" yra vienkartinis tarpinink",
-	".yra vienkartinis tarpinink",
-	"ui taikomas vienkartinis agent",
-	"ui taikomas agent",
-	"\nyra vienkartinis agent",
-	"\nyra tarpininkavimo mokest",
-	"\nyra vienkartinis tarpinink",
-	"\ntaikomas tarpinink",
-	"\ntaikomas vienkartinis tarpinink",
-	"\ntaikomas vienkartinis agent",
-	" vienkartinis sutarties sudarymo mokestis",
-	"\nvienkartinis sutarties sudarymo mokestis",
-	".vienkartinis sutarties sudarymo mokestis",
-	" taikomas sutarties sudarymo mokestis",
-	"\ntaikomas sutarties sudarymo mokestis",
-	".taikomas sutarties sudarymo mokestis",
-	" yra sutarties sudarymo mokestis",
-	"\nyra sutarties sudarymo mokestis",
-	".yra sutarties sudarymo mokestis",
-	", taikomas tarpininkavimo mokest",
-	"yra agentūrinis mokestis",
-	"yra agenturinis mokestis",
+	"mokestis (jei butas",
+	"\ntaikomas tarpininkavimas",
+	"tiks vienkartinis tarpinink",
 }
 
-var regexExclusion1 = regexp.MustCompile(`(agenturos|agentūros|agenturinis|agentūrinis|tarpininkavimo) mokestis[\s:]{0,3}\d+`)
-var regexExclusion2 = regexp.MustCompile(`\d+\s{0,1}\S+ (agentur|agentūr|tarpinink|vienkart)\S+ (tarp|mokest)\S+`)
+var exlusionRegexes = map[string]*regexp.Regexp{
+	"regex1": regexp.MustCompile(`(agent|tarpinink|vienkart)\S+ mokestis[\s:]{0,3}\d+`),
+	"regex2": regexp.MustCompile(`\d+\s{0,1}\S+ (agent|tarpinink|vienkart)\S+ (tarp|mokest)\S+`),
+	"regex3": regexp.MustCompile(`\W(yra|bus) (taikoma(s|)|imama(s|)|vienkartinis|agent\S+)( vienkartinis|) (agent|tarpinink|mokest)\S+`),
+	"regex4": regexp.MustCompile(`\Wtiks[^\s\w]{0,1}\s{0,1}(bus|yra|) (taikoma(s|)|imama(s|))`),
+	"regex5": regexp.MustCompile(`\W(yra |)(taikoma(s|)|imama(s|)|vienkartinis|sutarties)( sutarties|) sudar\S+ mokestis`),
+	"regex6": regexp.MustCompile(`(ui|ir) (yra |)(taikoma(s|)|imama(s|)) (vienkart|agent|tarpinink|mokest)\S+`),
+	"regex7": regexp.MustCompile(`(vienkartinis |)(agent|tarpinink)\S+ mokest\S+,{0,1} jei`),
+}
 
 // Note that post is already checked against DB in parsing functions!
 func (p post) processPost() {
@@ -111,20 +58,17 @@ func (p post) processPost() {
 	}
 
 	// Now check against regex rules
-	arr1 := regexExclusion1.FindStringSubmatch(desc)
-	if len(arr1) >= 1 {
-		fmt.Println(">> Excluding", insertedRowID, "reason: /regex1/")
-		return
-	}
-	arr2 := regexExclusion2.FindStringSubmatch(desc)
-	if len(arr2) >= 1 {
-		fmt.Println(">> Excluding", insertedRowID, "reason: /regex2/")
-		return
+	for k, v := range exlusionRegexes {
+		arr := v.FindStringSubmatch(desc)
+		if len(arr) >= 1 {
+			fmt.Println(">> Excluding", insertedRowID, "reason: /"+k+"/")
+			return
+		}
 	}
 
-	// Skip posts without price and let user know
+	// Skip posts without price
 	if p.price == 0 {
-		fmt.Println(">> 0eur price", p.url)
+		fmt.Println(">> 0eur price", insertedRowID)
 		return
 	}
 
