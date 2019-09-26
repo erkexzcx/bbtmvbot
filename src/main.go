@@ -97,7 +97,7 @@ func main() {
 			go parseSkelbiu()
 			go parseDomoplius()
 			go parseAlio()
-			go parseRinka()
+			//go parseRinka()
 			go parseKampas()
 			go parseNuomininkai()
 			time.Sleep(3 * time.Minute) // Run those functions every 3 minutes
