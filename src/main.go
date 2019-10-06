@@ -114,8 +114,6 @@ func main() {
 		}
 	}()
 
-	fmt.Println("test")
-
 	// Start bot:
 	bot.Start()
 }
