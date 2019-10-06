@@ -56,7 +56,7 @@ cat createdb.sql | sqlite3 database.db
 
 Then compile this application:
 ```
-go build src/*.go
+go build -o bbtmvbot src/*.go
 ```
 
 And finally, run:

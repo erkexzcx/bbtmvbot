@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
+	"net/http"
 	"os"
 	"regexp"
 	"strconv"
@@ -45,6 +47,14 @@ func main() {
 	// Connect to DB
 	databaseConnect()
 	defer db.Close()
+
+	// Define web server functions
+	defineInfluxHTTP()
+
+	// Start web server
+	go func() {
+		log.Fatal(http.ListenAndServe(":3999", nil))
+	}()
 
 	// Setup Telegrambot API
 	poller := &tb.LongPoller{Timeout: 15 * time.Second}
@@ -103,6 +113,8 @@ func main() {
 			time.Sleep(3 * time.Minute) // Run those functions every 3 minutes
 		}
 	}()
+
+	fmt.Println("test")
 
 	// Start bot:
 	bot.Start()
