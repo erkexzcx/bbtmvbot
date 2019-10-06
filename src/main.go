@@ -265,3 +265,98 @@ func readAPIFromFile() string {
 	}
 	return strings.TrimSpace(string(apiBytes))
 }
+
+// databaseSetEnableForUser - set column "enabled" value either 1 or 0
+func databaseSetEnableForUser(userID, value int) bool {
+
+	sql := fmt.Sprintf("UPDATE users SET enabled = %d WHERE id = %d", value, userID)
+	_, err := db.Exec(sql)
+	if err != nil {
+		fmt.Println(err)
+		return false
+	}
+	return true
+}
+
+// databaseSetConfig - set config values for user
+func databaseSetConfig(userID, priceFrom, priceTo, roomsFrom, roomsTo, yearFrom int) bool {
+	tx, err := db.Begin()
+	if err != nil {
+		fmt.Println(err)
+		return false
+	}
+	sql := "UPDATE users SET enabled=1, price_from=?, price_to=?, rooms_from=?, rooms_to=?, year_from=? WHERE id=?"
+	stmt, err := tx.Prepare(sql)
+	if err != nil {
+		fmt.Println(err)
+		return false
+	}
+	defer stmt.Close()
+	_, err = stmt.Exec(priceFrom, priceTo, roomsFrom, roomsTo, yearFrom, userID)
+	if err != nil {
+		fmt.Println(err)
+		return false
+	}
+	err = tx.Commit()
+	if err != nil {
+		fmt.Println(err)
+		return false
+	}
+	return true
+}
+
+// databaseAddNewUser - Adds new user to the table "users"
+func databaseAddNewUser(userID int) bool {
+
+	sql := fmt.Sprintf("INSERT OR IGNORE INTO users(id) VALUES(%d)", userID)
+	_, err := db.Exec(sql)
+	if err != nil {
+		fmt.Println(err)
+		return false
+	}
+	return true
+
+}
+
+// databaseGetUser - Get DbUser from DB
+func databaseGetUser(userID int) *DbUser {
+
+	sql := fmt.Sprintf("SELECT * FROM users WHERE id = %d LIMIT 1", userID)
+
+	var user DbUser
+	err := db.QueryRow(sql).Scan(
+		&user.id,
+		&user.enabled,
+		&user.priceFrom,
+		&user.priceTo,
+		&user.roomsFrom,
+		&user.roomsTo,
+		&user.yearFrom)
+
+	if err != nil {
+		fmt.Println(err)
+		return nil
+	}
+	return &user
+}
+
+func databaseGetStatistics() (stats dbStats) {
+	sql := `
+SELECT
+	(SELECT COUNT(*) FROM posts) AS posts_count,
+	(SELECT COUNT(*) FROM users) AS users_count,
+	(SELECT COUNT(*) FROM users WHERE enabled=1) AS users_enabled_count,
+	(SELECT CAST(AVG(price_from) AS INT) FROM users WHERE enabled=1) AS avg_price_from,
+	(SELECT CAST(AVG(price_to) AS INT) FROM users WHERE enabled=1) AS avg_price_to,
+	(SELECT CAST(AVG(rooms_from) AS INT) FROM users WHERE enabled=1) AS avg_rooms_from,
+	(SELECT CAST(AVG(rooms_to) AS INT) FROM users WHERE enabled=1) AS avg_rooms_to
+FROM users LIMIT 1
+`
+
+	db.QueryRow(sql).Scan(&stats.postsCount, &stats.usersCount,
+		&stats.enabledUsersCount, &stats.averagePriceFrom,
+		&stats.averagePriceTo, &stats.averageRoomsFrom,
+		&stats.averageRoomsTo)
+
+	return
+}

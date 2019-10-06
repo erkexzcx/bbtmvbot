@@ -30,7 +30,7 @@ func parseNuomininkai() {
 		link := postUpstreamID // https://nuomininkai.lt/skelbimas/vilniaus-m-sav-vilniaus-m-pilaite-i-kanto-al-isnuomojamas-1-kambario-butas-pilaiteje/
 
 		// Skip if post already in DB:
-		exists, err := databasePostExists(post{url: link})
+		exists, err := post{url: link}.postExistsInDB()
 		if exists {
 			return
 		}

@@ -30,7 +30,7 @@ func parseAruodas() {
 		link := "https://m.aruodas.lt/" + strings.ReplaceAll(postUpstreamID, "loadObject", "") // https://m.aruodas.lt/4-919937/
 
 		// Skip if post already in DB:
-		exists, err := databasePostExists(post{url: link})
+		exists, err := post{url: link}.postExistsInDB()
 		if exists {
 			return
 		}

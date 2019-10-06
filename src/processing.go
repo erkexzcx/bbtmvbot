@@ -5,6 +5,8 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+
+	tb "gopkg.in/tucnak/telebot.v2"
 )
 
 type post struct {
@@ -43,7 +45,7 @@ var exlusionRegexes = map[string]*regexp.Regexp{
 func (p post) processPost() {
 
 	// Add to database, so it won't be sent again
-	insertedRowID := databaseAddPost(p)
+	insertedRowID := p.addToDB()
 
 	// Convert description to lowercase and store here
 	desc := strings.ToLower(p.description)
@@ -73,7 +75,7 @@ func (p post) processPost() {
 	}
 
 	// Send to users
-	databaseGetUsersAndSendThem(p, insertedRowID)
+	p.sendToUsers(insertedRowID)
 
 	// Show debug info
 	fmt.Printf(
@@ -122,4 +124,77 @@ func (p *post) compileMessage(ID int64) string {
 	}
 
 	return b.String()
+}
+
+func (p post) addToDB() int64 {
+
+	sql := fmt.Sprintf("INSERT INTO posts(url) values (\"%s\")", p.url)
+
+	res, err := db.Exec(sql)
+	if err != nil {
+		fmt.Println(err)
+		return -1
+	}
+	lastInsertedID, err := res.LastInsertId()
+	if err != nil {
+		fmt.Println(err)
+		return -1
+	}
+	return lastInsertedID
+
+}
+
+func (p post) postExistsInDB() (bool, error) {
+	var count int // Will store count here
+
+	sql := fmt.Sprintf("SELECT COUNT(*) AS count FROM posts WHERE url=\"%s\" LIMIT 1", p.url)
+	err := db.QueryRow(sql).Scan(&count)
+
+	if err != nil {
+		fmt.Println(err)
+		return false, err
+	}
+	if count != 1 {
+		return false, nil
+	}
+	return true, nil
+
+}
+
+func (p post) sendToUsers(postID int64) {
+
+	sql := fmt.Sprintf(`
+	SELECT id FROM users WHERE
+	enabled=1 AND
+	((price_from <= %d AND price_to >= %d) OR %d = 0) AND
+	((rooms_from <= %d AND rooms_to >= %d) OR %d = 0) AND
+	(year_from <= %d OR %d = 0)`,
+		p.price, p.price, p.price,
+		p.rooms, p.rooms, p.rooms,
+		p.year, p.year)
+
+	rows, err := db.Query(sql)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var userID int
+		err = rows.Scan(&userID)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		// Send to user:
+		sendTo(&tb.User{ID: userID}, p.compileMessage(postID))
+	}
+	err = rows.Err()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
 }

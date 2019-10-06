@@ -30,7 +30,7 @@ func parseAlio() {
 		link := "https://www.alio.lt/skelbimai/ID" + strings.ReplaceAll(postUpstreamID, "lv_ad_id_", "") + ".html" // https://www.alio.lt/skelbimai/ID60331923.html
 
 		// Skip if post already in DB:
-		exists, err := databasePostExists(post{url: link})
+		exists, err := post{url: link}.postExistsInDB()
 		if exists {
 			return
 		}

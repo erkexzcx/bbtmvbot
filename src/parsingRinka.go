@@ -33,7 +33,7 @@ func parseRinka() {
 		link := postUpstreamID // https://www.rinka.lt/skelbimas/isnuomojamas-1-kambarys-3-kambariu-bute-id-4811032
 
 		// Skip if post already in DB:
-		exists, err := databasePostExists(post{url: link})
+		exists, err := post{url: link}.postExistsInDB()
 		if exists {
 			return
 		}

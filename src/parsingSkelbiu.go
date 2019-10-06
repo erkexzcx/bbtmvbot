@@ -30,7 +30,7 @@ func parseSkelbiu() {
 		link := "https://skelbiu.lt/skelbimai/" + postUpstreamID + ".html" // https://skelbiu.lt/42588321.html
 
 		// Skip if post already in DB:
-		exists, err := databasePostExists(post{url: link})
+		exists, err := post{url: link}.postExistsInDB()
 		if exists {
 			return
 		}

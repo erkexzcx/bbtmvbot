@@ -35,7 +35,7 @@ func parseDomoplius() {
 		link := "https://m.domoplius.lt/skelbimai/-" + strings.ReplaceAll(postUpstreamID, "ann_", "") + ".html" // https://m.domoplius.lt/skelbimai/-5806213.html
 
 		// Skip if post already in DB:
-		exists, err := databasePostExists(post{url: link})
+		exists, err := post{url: link}.postExistsInDB()
 		if exists {
 			return
 		}
