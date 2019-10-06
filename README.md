@@ -61,7 +61,7 @@ go build -o bbtmvbot src/*.go
 
 And finally, run:
 ```
-./main
+./bbtmvbot
 ```
 
 To update this app, simply pull latest changes & recompile:
