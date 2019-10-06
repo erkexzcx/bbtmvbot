@@ -69,3 +69,7 @@ To update this app, simply pull latest changes & recompile:
 git pull
 go build src/*.go
 ```
+
+### (Optional) InfluxDB/Grafana monitoring
+
+Use `<ipaddress>:3999/influx` to print influxdb (line protocol)[https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/] output. Grafana, InfluxDB, simple bash script to evaluate this output + cronjob every minute = amazing statistics & charts. :)
