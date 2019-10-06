@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/url"
 	"regexp"
 	"strings"
@@ -44,8 +45,28 @@ var exlusionRegexes = map[string]*regexp.Regexp{
 // Note that post is already checked against DB in parsing functions!
 func (p post) processPost() {
 
+	// Check if we need to exclude this post
+	excluded, reason := p.isExcluded()
+	if excluded {
+		rowID := p.addToDB(true, reason)
+		fmt.Println("// Excluded ", rowID, "|", reason)
+		return
+	}
+
 	// Add to database, so it won't be sent again
-	insertedRowID := p.addToDB()
+	rowID := p.addToDB(false, "")
+
+	// Send to users
+	p.sendToUsers(rowID)
+
+	// Show debug info
+	fmt.Printf(
+		"{ID:%d URL:%d Phon:%s Desc:%d Addr:%d Heat:%d Floor:%d FlTot:%d Area:%d Price:%d Room:%d Year:%d}\n",
+		rowID, len(p.url), p.phone, len(p.description), len(p.address), len(p.heating), p.floor, p.floorTotal, p.area, p.price, p.rooms, p.year,
+	)
+}
+
+func (p post) isExcluded() (excluded bool, reason string) {
 
 	// Convert description to lowercase and store here
 	desc := strings.ToLower(p.description)
@@ -55,33 +76,23 @@ func (p post) processPost() {
 		if !strings.Contains(desc, v) {
 			continue
 		}
-		fmt.Println(">> Excluding", insertedRowID, "reason:", v)
-		return
+		return true, v
 	}
 
 	// Now check against regex rules
 	for k, v := range exlusionRegexes {
 		arr := v.FindStringSubmatch(desc)
 		if len(arr) >= 1 {
-			fmt.Println(">> Excluding", insertedRowID, "reason: /"+k+"/")
-			return
+			return true, "/" + k + "/"
 		}
 	}
 
 	// Skip posts without price
 	if p.price == 0 {
-		fmt.Println(">> 0eur price", insertedRowID)
-		return
+		return true, "0eur price"
 	}
 
-	// Send to users
-	p.sendToUsers(insertedRowID)
-
-	// Show debug info
-	fmt.Printf(
-		"{ID:%d URL:%d Phon:%s Desc:%d Addr:%d Heat:%d Floor:%d FlTot:%d Area:%d Price:%d Room:%d Year:%d}\n",
-		insertedRowID, len(p.url), p.phone, len(p.description), len(p.address), len(p.heating), p.floor, p.floorTotal, p.area, p.price, p.rooms, p.year,
-	)
+	return false, ""
 }
 
 func (p *post) compileMessage(ID int64) string {
@@ -126,15 +137,28 @@ func (p *post) compileMessage(ID int64) string {
 	return b.String()
 }
 
-func (p post) addToDB() int64 {
+func (p post) addToDB(excluded bool, reason string) int64 {
 
-	sql := fmt.Sprintf("INSERT INTO posts(url) values (\"%s\")", p.url)
-
-	res, err := db.Exec(sql)
-	if err != nil {
-		fmt.Println(err)
-		return -1
+	var excludedVal int
+	if excluded {
+		excludedVal = 1
 	}
+
+	tx, err := db.Begin()
+	if err != nil {
+		log.Fatal(err)
+	}
+	stmt, err := tx.Prepare("INSERT INTO posts(url, excluded, reason) values (?, ?, ?)")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer stmt.Close()
+	res, err := stmt.Exec(p.url, excludedVal, reason)
+	if err != nil {
+		log.Fatal(err)
+	}
+	tx.Commit()
+
 	lastInsertedID, err := res.LastInsertId()
 	if err != nil {
 		fmt.Println(err)
