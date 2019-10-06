@@ -24,6 +24,10 @@ func printInfluxData(w *http.ResponseWriter) {
 	UNION SELECT 'portal' AS "type", 'skelbiu.lt' AS "key", COUNT(*) AS "value" FROM posts WHERE url LIKE "%skelbiu.lt%"
 	UNION SELECT 'users' AS "type", 'visited' AS "key", COUNT(*) AS "value" FROM users
 	UNION SELECT 'users' AS "type", 'enabled' AS "key", COUNT(*) AS "value" FROM users WHERE enabled = 1
+	UNION SELECT 'user_preferences' AS "type", 'avg_price_from' AS "key", (SELECT CAST(AVG(price_from) AS INT) FROM users WHERE enabled=1) AS "value"
+	UNION SELECT 'user_preferences' AS "type", 'avg_price_to' AS "key", (SELECT CAST(AVG(price_to) AS INT) FROM users WHERE enabled=1) AS "value"
+	UNION SELECT 'user_preferences' AS "type", 'avg_rooms_from' AS "key", (SELECT CAST(AVG(rooms_from) AS INT) FROM users WHERE enabled=1) AS "value"
+	UNION SELECT 'user_preferences' AS "type", 'avg_rooms_to' AS "key", (SELECT CAST(AVG(rooms_to) AS INT) FROM users WHERE enabled=1) AS "value"
 	`
 
 	rows, err := db.Query(sql)
