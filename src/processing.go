@@ -22,6 +22,7 @@ type post struct {
 	price       int
 	rooms       int
 	year        int
+	withFee     bool
 }
 
 // Must be lowercase!!!
@@ -53,6 +54,9 @@ func (p post) processPost() {
 		return
 	}
 
+	withFee, _ := p.isWithFee()
+	p.setWithFee(withFee)
+
 	// Add to database, so it won't be sent again
 	rowID := p.addToDB(false, "")
 
@@ -61,12 +65,25 @@ func (p post) processPost() {
 
 	// Show debug info
 	fmt.Printf(
-		"{ID:%d URL:%d Phon:%s Desc:%d Addr:%d Heat:%d Floor:%d FlTot:%d Area:%d Price:%d Room:%d Year:%d}\n",
-		rowID, len(p.url), p.phone, len(p.description), len(p.address), len(p.heating), p.floor, p.floorTotal, p.area, p.price, p.rooms, p.year,
+		"{ID:%d URL:%d Phon:%s Desc:%d Addr:%d Heat:%d Floor:%d FlTot:%d Area:%d Price:%d Room:%d Year:%d WithFees:%t URL %s}\n",
+		rowID, len(p.url), p.phone, len(p.description), len(p.address), len(p.heating), p.floor, p.floorTotal, p.area, p.price, p.rooms, p.year, p.withFee, p.url,
 	)
 }
 
+func (p *post) setWithFee(withFee bool) {
+	p.withFee = withFee
+}
+
 func (p post) isExcluded() (excluded bool, reason string) {
+	// Skip posts without price
+	if p.price == 0 {
+		return true, "0eur price"
+	}
+
+	return false, ""
+}
+
+func (p post) isWithFee() (excluded bool, reason string) {
 
 	// Convert description to lowercase and store here
 	desc := strings.ToLower(p.description)
@@ -133,6 +150,13 @@ func (p *post) compileMessage(ID int64) string {
 	} else if p.floor != 0 {
 		fmt.Fprintf(&b, "» *Aukštas:* `%d`\n", p.floor)
 	}
+
+	showWithFee := "taip"
+	if !p.withFee {
+		showWithFee = "ne"
+	}
+
+	fmt.Fprintf(&b, "» *Mokestis*: `%s`\n", showWithFee)
 
 	return b.String()
 }

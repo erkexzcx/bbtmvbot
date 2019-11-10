@@ -32,10 +32,10 @@ Tai yra botas (scriptas), kuris skenuoja įvairius populiariausius būtų nuomos
 
 const errorText = `Įvyko duomenų bazės klaida! Praneškite apie tai chat grupėje https://t.me/joinchat/G2hnjQ80K5qZaeHTEOFrDA`
 
-const configText = "Naudokite tokį formatą:\n\n```\n/config <kaina_nuo> <kaina_iki> <kambariai_nuo> <kambariai_iki> <metai_nuo>\n```\nPavyzdys:\n```\n/config 200 330 1 2 2000\n```"
+const configText = "Naudokite tokį formatą:\n\n```\n/config <kaina_nuo> <kaina_iki> <kambariai_nuo> <kambariai_iki> <metai_nuo> <rodyti_su_mokesčiu (taip/ne)>\n```\nPavyzdys:\n```\n/config 200 330 1 2 2000 taip\n```"
 const configErrorText = "Neteisinga įvestis! " + configText
 
-var validConfig = regexp.MustCompile(`^\/config (\d{1,5}) (\d{1,5}) (\d{1,2}) (\d{1,2}) (\d{4})$`)
+var validConfig = regexp.MustCompile(`^\/config (\d{1,5}) (\d{1,5}) (\d{1,2}) (\d{1,2}) (\d{4}) (taip|ne)$`)
 
 // We need to ensure that only one goroutine at a time can access `sendTo` function:
 var telegramMux sync.Mutex
@@ -140,6 +140,7 @@ func updateSettings(sender *tb.User, message string) {
 	roomsFrom, _ := strconv.Atoi(extracted[3])
 	roomsTo, _ := strconv.Atoi(extracted[4])
 	yearFrom, _ := strconv.Atoi(extracted[5])
+	showWithFees := strings.ToLower(extracted[6]) == "taip"
 
 	// Check values and logic:
 	currentTime := time.Now()
@@ -151,7 +152,7 @@ func updateSettings(sender *tb.User, message string) {
 	}
 
 	// All good, so update in DB:
-	if !databaseSetConfig(sender.ID, priceFrom, priceTo, roomsFrom, roomsTo, yearFrom) {
+	if !databaseSetConfig(sender.ID, priceFrom, priceTo, roomsFrom, roomsTo, yearFrom, showWithFees) {
 		sendTo(sender, errorText)
 		return
 	}
@@ -184,10 +185,12 @@ func sendStats(sender *tb.User) {
 	msg := fmt.Sprintf(`
 Boto statistinė informacija:
 » *Naudotojų kiekis:* %d (iš jų %d įjungę pranešimus)
+» *Iš jų ieškantys butų be tarpininko mokesčių:* %d 
 » *Nuscreipinta skelbimų:* %d
 » *Vidutiniai kainų nustatymai:* Nuo %d€ iki %d€
 » *Vidutiniai kambarių sk. nustatymai:* Nuo %d iki %d`,
 		s.usersCount, s.enabledUsersCount,
+		s.usersCount-s.usersWithFee,
 		s.postsCount,
 		s.averagePriceFrom, s.averagePriceTo,
 		s.averageRoomsFrom, s.averageRoomsTo)
@@ -222,19 +225,24 @@ func sendUserInfo(sender *tb.User) {
 		status = "Išjungti"
 	}
 
+	showWithFee := "taip"
+	if user.showWithFee == 0 {
+		showWithFee = "ne"
+	}
 	msg := fmt.Sprintf(`
 Jūsų aktyvūs nustatymai:
 » *Pranešimai:* %s
 » *Kaina:* Nuo %d€ iki %d€
 » *Kambarių sk.:* Nuo %d iki %d
-» *Metai nuo:* %d`,
+» *Metai nuo:* %d
+» *Skelbimai su tarpininkavimo mokesčiais:* %s`,
 		status,
 		user.priceFrom, user.priceTo,
 		user.roomsFrom, user.roomsTo,
-		user.yearFrom)
+		user.yearFrom,
+		showWithFee)
 
 	sendTo(sender, msg)
-
 }
 
 func sendTo(sender *tb.User, msg string) {
@@ -279,20 +287,20 @@ func databaseSetEnableForUser(userID, value int) bool {
 }
 
 // databaseSetConfig - set config values for user
-func databaseSetConfig(userID, priceFrom, priceTo, roomsFrom, roomsTo, yearFrom int) bool {
+func databaseSetConfig(userID, priceFrom, priceTo, roomsFrom, roomsTo, yearFrom int, showWithFees bool) bool {
 	tx, err := db.Begin()
 	if err != nil {
 		fmt.Println(err)
 		return false
 	}
-	sql := "UPDATE users SET enabled=1, price_from=?, price_to=?, rooms_from=?, rooms_to=?, year_from=? WHERE id=?"
+	sql := "UPDATE users SET enabled=1, price_from=?, price_to=?, rooms_from=?, rooms_to=?, year_from=?, show_with_fee=? WHERE id=?"
 	stmt, err := tx.Prepare(sql)
 	if err != nil {
 		fmt.Println(err)
 		return false
 	}
 	defer stmt.Close()
-	_, err = stmt.Exec(priceFrom, priceTo, roomsFrom, roomsTo, yearFrom, userID)
+	_, err = stmt.Exec(priceFrom, priceTo, roomsFrom, roomsTo, yearFrom, showWithFees, userID)
 	if err != nil {
 		fmt.Println(err)
 		return false
@@ -331,7 +339,8 @@ func databaseGetUser(userID int) *DbUser {
 		&user.priceTo,
 		&user.roomsFrom,
 		&user.roomsTo,
-		&user.yearFrom)
+		&user.yearFrom,
+		&user.showWithFee)
 
 	if err != nil {
 		fmt.Println(err)
@@ -349,14 +358,15 @@ SELECT
 	(SELECT CAST(AVG(price_from) AS INT) FROM users WHERE enabled=1) AS avg_price_from,
 	(SELECT CAST(AVG(price_to) AS INT) FROM users WHERE enabled=1) AS avg_price_to,
 	(SELECT CAST(AVG(rooms_from) AS INT) FROM users WHERE enabled=1) AS avg_rooms_from,
-	(SELECT CAST(AVG(rooms_to) AS INT) FROM users WHERE enabled=1) AS avg_rooms_to
+	(SELECT CAST(AVG(rooms_to) AS INT) FROM users WHERE enabled=1) AS avg_rooms_to,
+	(SELECT COUNT(*) FROM users WHERE show_with_fee=1) AS users_with_fee
 FROM users LIMIT 1
 `
 
 	db.QueryRow(sql).Scan(&stats.postsCount, &stats.usersCount,
 		&stats.enabledUsersCount, &stats.averagePriceFrom,
 		&stats.averagePriceTo, &stats.averageRoomsFrom,
-		&stats.averageRoomsTo)
+		&stats.averageRoomsTo, &stats.usersWithFee)
 
 	return
 }

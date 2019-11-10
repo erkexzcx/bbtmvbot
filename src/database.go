@@ -9,13 +9,14 @@ import (
 
 // DbUser is here to store data about the user from DB
 type DbUser struct {
-	id        int
-	enabled   int
-	priceFrom int
-	priceTo   int
-	roomsFrom int
-	roomsTo   int
-	yearFrom  int
+	id          int
+	enabled     int
+	priceFrom   int
+	priceTo     int
+	roomsFrom   int
+	roomsTo     int
+	yearFrom    int
+	showWithFee int
 }
 
 type dbStats struct {
@@ -26,6 +27,7 @@ type dbStats struct {
 	averagePriceTo    int
 	averageRoomsFrom  int
 	averageRoomsTo    int
+	usersWithFee      int
 }
 
 var db *sql.DB
