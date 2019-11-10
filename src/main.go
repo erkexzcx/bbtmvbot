@@ -32,7 +32,7 @@ Tai yra botas (scriptas), kuris skenuoja įvairius populiariausius būtų nuomos
 
 const errorText = `Įvyko duomenų bazės klaida! Praneškite apie tai chat grupėje https://t.me/joinchat/G2hnjQ80K5qZaeHTEOFrDA`
 
-const configText = "Naudokite tokį formatą:\n\n```\n/config <kaina_nuo> <kaina_iki> <kambariai_nuo> <kambariai_iki> <metai_nuo> <rodyti_su_mokesčiu (taip/ne)>\n```\nPavyzdys:\n```\n/config 200 330 1 2 2000 taip\n```"
+const configText = "Naudokite tokį formatą:\n\n```\n/config <kaina_nuo> <kaina_iki> <kambariai_nuo> <kambariai_iki> <metai_nuo> <rodyti_su_mokesčiu (taip/ne)>\n```\nPavyzdys:\n```\n/config 200 330 1 2 2000 ne\n```"
 const configErrorText = "Neteisinga įvestis! " + configText
 
 var validConfig = regexp.MustCompile(`^\/config (\d{1,5}) (\d{1,5}) (\d{1,2}) (\d{1,2}) (\d{4}) (taip|ne)$`)
