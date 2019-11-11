@@ -20,7 +20,7 @@ func parseAruodas() {
 	}
 
 	// For each post in page:
-	doc.Find("ul.search-result-list-v2 > li.result-item-v3").Each(func(i int, s *goquery.Selection) {
+	doc.Find("ul.search-result-list-v2 > li.result-item-v3:not([style='display: none'])").Each(func(i int, s *goquery.Selection) {
 
 		// Get postURL:
 		postUpstreamID, exists := s.Attr("data-id")
