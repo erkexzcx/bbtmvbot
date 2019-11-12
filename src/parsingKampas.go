@@ -42,7 +42,7 @@ func parseKampas() {
 		if err == nil {
 			attr, exists := doc.Find("div.sidebar span.hidden.hidden-phone > a.btn").First().Attr("href")
 			if exists {
-				phone = strings.ReplaceAll(attr, "tel:", "")
+				phone = strings.ReplaceAll(strings.ReplaceAll(attr, "tel:", ""), " ", "")
 			}
 
 			heating = doc.Find("i.i-heating+span").Text()
