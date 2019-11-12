@@ -35,12 +35,25 @@ func parseKampas() {
 			continue
 		}
 
+		phone := ""
+		heating := ""
+		// Get content as Goquery Document:
+		doc, err := downloadAsGoqueryDocument(link)
+		if err == nil {
+			attr, exists := doc.Find("div.sidebar span.hidden.hidden-phone > a.btn").First().Attr("href")
+			if exists {
+				phone = strings.ReplaceAll(attr, "tel:", "")
+			}
+
+			heating = doc.Find("i.i-heating+span").Text()
+		}
+
 		p := post{
 			url:         link,
-			phone:       "", // Impossible - anti bot too good
+			phone:       phone,
 			description: strings.ReplaceAll(fmt.Sprintf("%v", mypost["description"]), "<br/>", "\n"),
 			address:     fmt.Sprintf("%v", mypost["title"]),
-			heating:     "", // Impossible
+			heating:     heating,
 			floor:       interfaceToNumber(mypost["objectfloor"]),
 			floorTotal:  interfaceToNumber(mypost["totalfloors"]),
 			area:        interfaceToNumber(mypost["objectarea"]),
