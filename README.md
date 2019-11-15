@@ -67,7 +67,7 @@ And finally, run:
 To update this app, simply pull latest changes & recompile:
 ```
 git pull
-go build src/*.go
+go build -o bbtmvbot src/*.go
 ```
 
 ### (Optional) InfluxDB/Grafana monitoring
