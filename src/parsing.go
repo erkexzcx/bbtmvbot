@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -32,14 +33,15 @@ func compileAddress(state, street string) (address string) {
 	return
 }
 
-func downloadAsBytes(url string) ([]byte, error) {
-	res, err := http.Get(url)
+func downloadAsBytes(link string) ([]byte, error) {
+	res, err := http.Get(link)
 	if err != nil {
 		return nil, err
 	}
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
-		return nil, fmt.Errorf("status code error: %d %s", res.StatusCode, res.Status)
+		u, _ := url.Parse(link)
+		return nil, fmt.Errorf("status code error: %s (from %s)", res.Status, u.Host)
 	}
 	content, err := ioutil.ReadAll(res.Body)
 	if err != nil {
@@ -48,14 +50,15 @@ func downloadAsBytes(url string) ([]byte, error) {
 	return []byte(content), nil
 }
 
-func downloadAsGoqueryDocument(url string) (*goquery.Document, error) {
-	res, err := http.Get(url)
+func downloadAsGoqueryDocument(link string) (*goquery.Document, error) {
+	res, err := http.Get(link)
 	if err != nil {
 		return nil, err
 	}
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
-		return nil, fmt.Errorf("status code error: %d %s", res.StatusCode, res.Status)
+		u, _ := url.Parse(link)
+		return nil, fmt.Errorf("status code error: %s (from %s)", res.Status, u.Host)
 	}
 	return goquery.NewDocumentFromReader(res.Body)
 }
