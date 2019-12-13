@@ -1,10 +1,13 @@
 # BBTMV bot
 
+
+[![Go Report Card](https://goreportcard.com/badge/github.com/erkexzcx/BBTMV-bot)](https://goreportcard.com/report/github.com/erkexzcx/BBTMV-bot)
+
 This bot scans the most popular flat rent portals for latest posts in Vilnius, which will be sent to subscribed users using Telegram app.
 
-Hardware requirements are so low that you can even run this completelly fine on a lowest-end SBC. On RPI0W, RAM usage is only about 8mb and CPU load is up to 25%, so you can run this on any _potato_ you want :)
+Hardware requirements are so low that you can even run this completelly fine on a lowest-end SBC. On RPI0W, RAM usage is only about 8mb and CPU load is only few percent, so you can run this on any _potato_ you want :)
 
-See it in action (Lithuanian language): https://t.me/butuskelbimubot (yes, hosted on RPI0W)
+See it in action (Lithuanian language): https://t.me/butuskelbimubot (hosted on RPI3B+)
 
 ## Installation
 
