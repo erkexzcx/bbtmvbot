@@ -280,24 +280,8 @@ func databaseSetEnableForUser(userID, value int) bool {
 
 // databaseSetConfig - set config values for user
 func databaseSetConfig(userID, priceFrom, priceTo, roomsFrom, roomsTo, yearFrom int) bool {
-	tx, err := db.Begin()
-	if err != nil {
-		fmt.Println(err)
-		return false
-	}
 	sql := "UPDATE users SET enabled=1, price_from=?, price_to=?, rooms_from=?, rooms_to=?, year_from=? WHERE id=?"
-	stmt, err := tx.Prepare(sql)
-	if err != nil {
-		fmt.Println(err)
-		return false
-	}
-	defer stmt.Close()
-	_, err = stmt.Exec(priceFrom, priceTo, roomsFrom, roomsTo, yearFrom, userID)
-	if err != nil {
-		fmt.Println(err)
-		return false
-	}
-	err = tx.Commit()
+	_, err := db.Exec(sql, priceFrom, priceTo, roomsFrom, roomsTo, yearFrom, userID)
 	if err != nil {
 		fmt.Println(err)
 		return false
