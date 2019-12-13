@@ -47,7 +47,7 @@ func downloadAsBytes(link string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return []byte(content), nil
+	return content, nil
 }
 
 func downloadAsGoqueryDocument(link string) (*goquery.Document, error) {
