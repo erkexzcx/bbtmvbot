@@ -268,7 +268,6 @@ func readAPIFromFile() string {
 
 // databaseSetEnableForUser - set column "enabled" value either 1 or 0
 func databaseSetEnableForUser(userID, value int) bool {
-
 	sql := fmt.Sprintf("UPDATE users SET enabled = %d WHERE id = %d", value, userID)
 	_, err := db.Exec(sql)
 	if err != nil {
@@ -291,7 +290,6 @@ func databaseSetConfig(userID, priceFrom, priceTo, roomsFrom, roomsTo, yearFrom 
 
 // databaseAddNewUser - Adds new user to the table "users"
 func databaseAddNewUser(userID int) bool {
-
 	sql := fmt.Sprintf("INSERT OR IGNORE INTO users(id) VALUES(%d)", userID)
 	_, err := db.Exec(sql)
 	if err != nil {
@@ -299,12 +297,10 @@ func databaseAddNewUser(userID int) bool {
 		return false
 	}
 	return true
-
 }
 
 // databaseGetUser - Get DbUser from DB
 func databaseGetUser(userID int) *DbUser {
-
 	sql := fmt.Sprintf("SELECT * FROM users WHERE id = %d LIMIT 1", userID)
 
 	var user DbUser
