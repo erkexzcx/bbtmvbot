@@ -39,7 +39,7 @@ func handleCommandEnable(m *tb.Message) {
 		sendTo(m.Sender, errorText)
 		return
 	}
-	sendTo(m.Sender, "Pranešimai įjungti! Naudokite komandą /disable kad juos išjungti.\n"+ActiveSettingsText)
+	sendTo(m.Sender, "Pranešimai įjungti! Naudokite komandą /disable kad juos išjungti.\n\n"+ActiveSettingsText)
 }
 
 func handleCommandDisable(m *tb.Message) {
@@ -106,7 +106,7 @@ func handleCommandConfig(m *tb.Message) {
 		sendTo(m.Sender, errorText)
 		return
 	}
-	sendTo(m.Sender, "Nustatymai atnaujinti ir pranešimai įjungti!\n"+ActiveSettingsText)
+	sendTo(m.Sender, "Nustatymai atnaujinti ir pranešimai įjungti!\n\n"+ActiveSettingsText)
 }
 
 func handleCommandHelp(m *tb.Message) {

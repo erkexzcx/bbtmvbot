@@ -131,7 +131,7 @@ func getActiveSettingsText(sender *tb.User) (string, error) {
 		status = "Išjungti"
 	}
 
-	msg := fmt.Sprintf(activeSettings, status, u.priceFrom,
+	msg := fmt.Sprintf(activeSettingsText, status, u.priceFrom,
 		u.priceTo, u.roomsFrom, u.roomsTo, u.yearFrom)
 	return msg, nil
 }

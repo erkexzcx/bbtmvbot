@@ -22,8 +22,7 @@ const configText = "Naudokite tokį formatą:\n\n```\n/config <kaina_nuo> <kaina
 
 const configErrorText = "Neteisinga įvestis! " + configText
 
-const activeSettings = `
-Jūsų aktyvūs nustatymai:
+const activeSettingsText = `*Jūsų aktyvūs nustatymai:*
 » *Pranešimai:* %s
 » *Kaina:* Nuo %d€ iki %d€
 » *Kambarių sk.:* Nuo %d iki %d
