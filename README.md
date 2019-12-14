@@ -1,6 +1,6 @@
 # BBTMV bot
 
-
+[![License](https://img.shields.io/github/license/erkexzcx/BBTMV-bot)](LICENSE)
 [![Go Report Card](https://goreportcard.com/badge/github.com/erkexzcx/BBTMV-bot)](https://goreportcard.com/report/github.com/erkexzcx/BBTMV-bot)
 
 This bot scans the most popular flat rent portals for latest posts in Vilnius, which will be sent to subscribed users using Telegram app.
