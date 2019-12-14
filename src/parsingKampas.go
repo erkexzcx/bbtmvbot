@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 )
@@ -14,7 +15,7 @@ func parseKampas() {
 	// Get HTML:
 	content, err := downloadAsBytes(url)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return
 	}
 

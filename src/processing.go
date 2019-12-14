@@ -49,7 +49,7 @@ func (p post) processPost() {
 	excluded, reason := p.isExcluded()
 	if excluded {
 		rowID := p.addToDB(true, reason)
-		fmt.Println("// Excluded ", rowID, "|", reason)
+		log.Println("// Excluded ", rowID, "|", reason)
 		return
 	}
 
@@ -60,7 +60,7 @@ func (p post) processPost() {
 	p.sendToUsers(rowID)
 
 	// Show debug info
-	fmt.Printf(
+	log.Printf(
 		"{ID:%d URL:%d Phon:%s Desc:%d Addr:%d Heat:%d Floor:%d FlTot:%d Area:%d Price:%d Room:%d Year:%d}\n",
 		rowID, len(p.url), p.phone, len(p.description), len(p.address), len(p.heating), p.floor, p.floorTotal, p.area, p.price, p.rooms, p.year,
 	)
@@ -161,7 +161,7 @@ func (p post) addToDB(excluded bool, reason string) int64 {
 
 	lastInsertedID, err := res.LastInsertId()
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return -1
 	}
 	return lastInsertedID
@@ -175,7 +175,7 @@ func (p post) postExistsInDB() (bool, error) {
 	err := db.QueryRow(sql).Scan(&count)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return false, err
 	}
 	if count != 1 {
@@ -199,7 +199,7 @@ func (p post) sendToUsers(postID int64) {
 
 	rows, err := db.Query(sql)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return
 	}
 	defer rows.Close()
@@ -208,7 +208,7 @@ func (p post) sendToUsers(postID int64) {
 		var userID int
 		err = rows.Scan(&userID)
 		if err != nil {
-			fmt.Println(err)
+			log.Println(err)
 			return
 		}
 
@@ -217,7 +217,7 @@ func (p post) sendToUsers(postID int64) {
 	}
 	err = rows.Err()
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return
 	}
 

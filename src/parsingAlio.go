@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"strconv"
 	"strings"
 
@@ -15,7 +15,7 @@ func parseAlio() {
 	// Get content as Goquery Document:
 	doc, err := downloadAsGoqueryDocument(url)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return
 	}
 
@@ -38,7 +38,7 @@ func parseAlio() {
 		// Get post's content as Goquery Document:
 		postDoc, err := downloadAsGoqueryDocument(link)
 		if err != nil {
-			fmt.Println(err)
+			log.Println(err)
 			return
 		}
 

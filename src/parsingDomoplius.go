@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"regexp"
 	"strconv"
 	"strings"
@@ -20,7 +20,7 @@ func parseDomoplius() {
 	// Get content as Goquery Document:
 	doc, err := downloadAsGoqueryDocument(url)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return
 	}
 
@@ -43,7 +43,7 @@ func parseDomoplius() {
 		// Get post's content as Goquery Document:
 		postDoc, err := downloadAsGoqueryDocument(link)
 		if err != nil {
-			fmt.Println(err)
+			log.Println(err)
 			return
 		}
 
