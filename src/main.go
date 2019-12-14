@@ -166,8 +166,8 @@ func readAPIFromFile() string {
 }
 
 func ensureUserInDB(userID int) bool {
-	sql := "INSERT OR IGNORE INTO users(id) VALUES(?)"
-	_, err := db.Exec(sql, userID)
+	query := "INSERT OR IGNORE INTO users(id) VALUES(?)"
+	_, err := db.Exec(query, userID)
 	if err != nil {
 		log.Println(err)
 		return false
@@ -176,9 +176,9 @@ func ensureUserInDB(userID int) bool {
 }
 
 func getUser(userID int) (user, error) {
-	sql := "SELECT * FROM users WHERE id=? LIMIT 1"
+	query := "SELECT * FROM users WHERE id=? LIMIT 1"
 	var u user
-	err := db.QueryRow(sql, userID).Scan(&u.id, &u.enabled,
+	err := db.QueryRow(query, userID).Scan(&u.id, &u.enabled,
 		&u.priceFrom, &u.priceTo, &u.roomsFrom,
 		&u.roomsTo, &u.yearFrom)
 	if err != nil {
@@ -189,7 +189,7 @@ func getUser(userID int) (user, error) {
 }
 
 func getStats() (stats, error) {
-	sql := `
+	query := `
 		SELECT
 			(SELECT COUNT(*) FROM posts) AS posts_count,
 			(SELECT COUNT(*) FROM users) AS users_count,
@@ -200,7 +200,7 @@ func getStats() (stats, error) {
 			(SELECT CAST(AVG(rooms_to) AS INT) FROM users WHERE enabled=1) AS avg_rooms_to
 		FROM users LIMIT 1`
 	var s stats
-	err := db.QueryRow(sql).Scan(&s.postsCount, &s.usersCount,
+	err := db.QueryRow(query).Scan(&s.postsCount, &s.usersCount,
 		&s.enabledUsersCount, &s.averagePriceFrom, &s.averagePriceTo,
 		&s.averageRoomsFrom, &s.averageRoomsTo)
 	if err != nil {

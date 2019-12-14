@@ -13,7 +13,7 @@ func parseSkelbiu() {
 	url := "https://www.skelbiu.lt/skelbimai/?cities=465&category_id=322&cities=465&district=0&cost_min=&cost_max=&status=0&space_min=&space_max=&rooms_min=&rooms_max=&building=0&year_min=&year_max=&floor_min=&floor_max=&floor_type=0&user_type=0&type=1&orderBy=1&import=2&keywords="
 
 	// Get content as Goquery Document:
-	doc, err := downloadAsGoqueryDocument(url)
+	doc, err := getGoqueryDocument(url)
 	if err != nil {
 		log.Println(err)
 		return
@@ -30,29 +30,32 @@ func parseSkelbiu() {
 		link := "https://skelbiu.lt/skelbimai/" + postUpstreamID + ".html" // https://skelbiu.lt/42588321.html
 
 		// Skip if post already in DB:
-		exists, err := post{url: link}.postExistsInDB()
+		exists, err := postURLInDB(link)
+		if err != nil {
+			log.Println(err)
+			return
+		}
 		if exists {
 			return
 		}
 
 		// Get post's content as Goquery Document:
-		postDoc, err := downloadAsGoqueryDocument(link)
+		postDoc, err := getGoqueryDocument(link)
 		if err != nil {
 			log.Println(err)
 			return
 		}
 
-		//-------------------------------------------------
-		// Define variables:
-		var phone, descr, addr, heating, tmpStr string
-		var floor, floorTotal, area, price, rooms, year int
+		// ------------------------------------------------------------
+		p := post{url: link}
+		var tmp string
 
 		// Extract phone:
-		phone = postDoc.Find("div.phone-button > div.primary").Text()
-		phone = strings.ReplaceAll(phone, " ", "")
+		tmp = postDoc.Find("div.phone-button > div.primary").Text()
+		p.phone = strings.ReplaceAll(tmp, " ", "")
 
 		// Extract description:
-		descr = postDoc.Find("div[itemprop=\"description\"]").Text()
+		p.description = postDoc.Find("div[itemprop=\"description\"]").Text()
 
 		// Extract address:
 		addrState := postDoc.Find(".detail > .title:contains(\"Mikrorajonas:\")").Next().Text()
@@ -61,61 +64,47 @@ func parseSkelbiu() {
 		addrState = strings.TrimSpace(addrState)
 		addrStreet = strings.TrimSpace(addrStreet)
 		addrHouseNum = strings.TrimSpace(addrHouseNum)
-		addr = compileAddressWithStreet(addrState, addrStreet, addrHouseNum)
+		p.address = compileAddressWithStreet(addrState, addrStreet, addrHouseNum)
 
 		// Extract heating:
-		heating = postDoc.Find(".detail > .title:contains(\"Šildymas:\")").Next().Text()
+		p.heating = postDoc.Find(".detail > .title:contains(\"Šildymas:\")").Next().Text()
 
 		// Extract floor:
-		tmpStr = postDoc.Find(".detail > .title:contains(\"Aukštas:\")").Next().Text()
-		floor, _ = strconv.Atoi(tmpStr)
+		tmp = postDoc.Find(".detail > .title:contains(\"Aukštas:\")").Next().Text()
+		p.floor, _ = strconv.Atoi(tmp)
 
 		// Extract floor total:
-		tmpStr = postDoc.Find(".detail > .title:contains(\"Aukštų skaičius:\")").Next().Text()
-		floorTotal, _ = strconv.Atoi(tmpStr)
+		tmp = postDoc.Find(".detail > .title:contains(\"Aukštų skaičius:\")").Next().Text()
+		p.floorTotal, _ = strconv.Atoi(tmp)
 
 		// Extract area:
-		tmpStr = postDoc.Find(".detail > .title:contains(\"Plotas, m²:\")").Next().Text()
-		if tmpStr != "" {
-			tmpStr = strings.TrimSpace(tmpStr)
-			if strings.Contains(tmpStr, ",") {
-				tmpStr = strings.Split(tmpStr, ",")[0]
+		tmp = postDoc.Find(".detail > .title:contains(\"Plotas, m²:\")").Next().Text()
+		if tmp != "" {
+			tmp = strings.TrimSpace(tmp)
+			if strings.Contains(tmp, ",") {
+				tmp = strings.Split(tmp, ",")[0]
 			} else {
-				tmpStr = strings.Split(tmpStr, " ")[0]
+				tmp = strings.Split(tmp, " ")[0]
 			}
-			area, _ = strconv.Atoi(tmpStr)
+			p.area, _ = strconv.Atoi(tmp)
 		}
 
 		// Extract price:
-		tmpStr = postDoc.Find("p.price:contains(\" €\")").Text()
-		if tmpStr != "" {
-			tmpStr = strings.TrimSpace(tmpStr)
-			tmpStr = strings.ReplaceAll(tmpStr, " ", "")
-			tmpStr = strings.ReplaceAll(tmpStr, "€", "")
-			price, _ = strconv.Atoi(tmpStr)
+		tmp = postDoc.Find("p.price:contains(\" €\")").Text()
+		if tmp != "" {
+			tmp = strings.TrimSpace(tmp)
+			tmp = strings.ReplaceAll(tmp, " ", "")
+			tmp = strings.ReplaceAll(tmp, "€", "")
+			p.price, _ = strconv.Atoi(tmp)
 		}
 
 		// Extract rooms:
-		tmpStr = postDoc.Find(".detail > .title:contains(\"Kamb. sk.:\")").Next().Text()
-		rooms, _ = strconv.Atoi(tmpStr)
+		tmp = postDoc.Find(".detail > .title:contains(\"Kamb. sk.:\")").Next().Text()
+		p.rooms, _ = strconv.Atoi(tmp)
 
 		// Extract year:
-		tmpStr = postDoc.Find(".detail > .title:contains(\"Metai:\")").Next().Text()
-		year, _ = strconv.Atoi(tmpStr)
-
-		p := post{
-			url:         link,
-			phone:       strings.TrimSpace(phone),
-			description: strings.TrimSpace(descr),
-			address:     strings.TrimSpace(addr),
-			heating:     strings.TrimSpace(heating),
-			floor:       floor,
-			floorTotal:  floorTotal,
-			area:        area,
-			price:       price,
-			rooms:       rooms,
-			year:        year,
-		}
+		tmp = postDoc.Find(".detail > .title:contains(\"Metai:\")").Next().Text()
+		p.year, _ = strconv.Atoi(tmp)
 
 		go p.processPost()
 	})

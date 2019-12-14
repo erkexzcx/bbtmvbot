@@ -33,7 +33,7 @@ func compileAddress(state, street string) (address string) {
 	return
 }
 
-func downloadAsBytes(link string) ([]byte, error) {
+func getBytes(link string) ([]byte, error) {
 	res, err := http.Get(link)
 	if err != nil {
 		return nil, err
@@ -50,7 +50,7 @@ func downloadAsBytes(link string) ([]byte, error) {
 	return content, nil
 }
 
-func downloadAsGoqueryDocument(link string) (*goquery.Document, error) {
+func getGoqueryDocument(link string) (*goquery.Document, error) {
 	res, err := http.Get(link)
 	if err != nil {
 		return nil, err

@@ -27,8 +27,8 @@ func handleCommandStats(m *tb.Message) {
 }
 
 func handleCommandEnable(m *tb.Message) {
-	sql := "UPDATE users SET enabled=1 WHERE id=?"
-	_, err := db.Exec(sql, m.Sender.ID)
+	query := "UPDATE users SET enabled=1 WHERE id=?"
+	_, err := db.Exec(query, m.Sender.ID)
 	if err != nil {
 		sendTo(m.Sender, errorText)
 		return
@@ -43,8 +43,8 @@ func handleCommandEnable(m *tb.Message) {
 }
 
 func handleCommandDisable(m *tb.Message) {
-	sql := "UPDATE users SET enabled=0 WHERE id=?"
-	_, err := db.Exec(sql, m.Sender.ID)
+	query := "UPDATE users SET enabled=0 WHERE id=?"
+	_, err := db.Exec(query, m.Sender.ID)
 	if err != nil {
 		sendTo(m.Sender, errorText)
 		return
@@ -94,8 +94,8 @@ func handleCommandConfig(m *tb.Message) {
 	}
 
 	// Update in DB
-	sql := "UPDATE users SET enabled=1, price_from=?, price_to=?, rooms_from=?, rooms_to=?, year_from=? WHERE id=?"
-	_, err := db.Exec(sql, priceFrom, priceTo, roomsFrom, roomsTo, yearFrom, m.Sender.ID)
+	query := "UPDATE users SET enabled=1, price_from=?, price_to=?, rooms_from=?, rooms_to=?, year_from=? WHERE id=?"
+	_, err := db.Exec(query, priceFrom, priceTo, roomsFrom, roomsTo, yearFrom, m.Sender.ID)
 	if err != nil {
 		sendTo(m.Sender, errorText)
 		return
@@ -119,7 +119,7 @@ func handleCommandHelp(m *tb.Message) {
 }
 
 func handleRequestInflux(w http.ResponseWriter, r *http.Request) {
-	sql := `
+	query := `
 	SELECT 'portal' AS "type", 'alio.lt' AS "key", COUNT(*) AS "value" FROM posts WHERE url LIKE "%alio.lt%"
 	UNION SELECT 'portal' AS "type", 'aruodas.lt' AS "key", COUNT(*) AS "value" FROM posts WHERE url LIKE "%aruodas.lt%"
 	UNION SELECT 'portal' AS "type", 'domoplius.lt' AS "key", COUNT(*) AS "value" FROM posts WHERE url LIKE "%domoplius.lt%"
@@ -139,7 +139,7 @@ func handleRequestInflux(w http.ResponseWriter, r *http.Request) {
 	UNION SELECT 'posts' AS "type", 'no_price' AS "key", (SELECT COUNT(*) FROM posts WHERE reason="0eur price") AS "value"
 	`
 
-	rows, err := db.Query(sql)
+	rows, err := db.Query(query)
 	if err != nil {
 		log.Println(err)
 		return

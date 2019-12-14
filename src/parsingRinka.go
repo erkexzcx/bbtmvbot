@@ -16,7 +16,7 @@ func parseRinka() {
 	url := "https://www.rinka.lt/nekilnojamojo-turto-skelbimai/butu-nuoma?filter%5BKainaForAll%5D%5Bmin%5D=&filter%5BKainaForAll%5D%5Bmax%5D=&filter%5BNTnuomakambariuskaiciusButai%5D%5Bmin%5D=&filter%5BNTnuomakambariuskaiciusButai%5D%5Bmax%5D=&filter%5BNTnuomabendrasplotas%5D%5Bmin%5D=&filter%5BNTnuomabendrasplotas%5D%5Bmax%5D=&filter%5BNTnuomastatybosmetai%5D%5Bmin%5D=&filter%5BNTnuomastatybosmetai%5D%5Bmax%5D=&filter%5BNTnuomaaukstuskaicius%5D%5Bmin%5D=&filter%5BNTnuomaaukstuskaicius%5D%5Bmax%5D=&filter%5BNTnuomaaukstas%5D%5Bmin%5D=&filter%5BNTnuomaaukstas%5D%5Bmax%5D=&cities%5B0%5D=2&cities%5B1%5D=3"
 
 	// Get content as Goquery Document:
-	doc, err := downloadAsGoqueryDocument(url)
+	doc, err := getGoqueryDocument(url)
 	if err != nil {
 		log.Println(err)
 		return
@@ -33,13 +33,17 @@ func parseRinka() {
 		link := postUpstreamID // https://www.rinka.lt/skelbimas/isnuomojamas-1-kambarys-3-kambariu-bute-id-4811032
 
 		// Skip if post already in DB:
-		exists, err := post{url: link}.postExistsInDB()
+		exists, err := postURLInDB(link)
+		if err != nil {
+			log.Println(err)
+			return
+		}
 		if exists {
 			return
 		}
 
 		// Get post's content as Goquery Document:
-		postDoc, err := downloadAsGoqueryDocument(link)
+		postDoc, err := getGoqueryDocument(link)
 		if err != nil {
 			log.Println(err)
 			return
@@ -48,86 +52,71 @@ func parseRinka() {
 		// Extract details element
 		detailsElement := postDoc.Find("#adFullBlock")
 
-		//-------------------------------------------------
-		// Define variables:
-		var phone, descr, addr, heating, tmpStr string
-		var floor, floorTotal, area, price, rooms, year int
+		// ------------------------------------------------------------
+		p := post{url: link}
+		var tmp string
 
 		// Extract phone:
-		phone = postDoc.Find("#phone_val_value").Text()
-		phone = strings.ReplaceAll(phone, " ", "")
+		tmp = postDoc.Find("#phone_val_value").Text()
+		p.phone = strings.ReplaceAll(tmp, " ", "")
 
 		// Extract description:
-		descr = postDoc.Find("[itemprop=\"description\"]").Text()
+		p.description = postDoc.Find("[itemprop=\"description\"]").Text()
 
 		// Extract address:
 		addrState := detailsElement.Find("dt:contains(\"Mikrorajonas / Gyvenvietė:\")").Next().Text()
 		addrStreet := detailsElement.Find("dt:contains(\"Gatvė:\")").Next().Text()
 		addrState = strings.TrimSpace(addrState)
 		addrStreet = strings.TrimSpace(addrStreet)
-		addr = compileAddress(addrState, addrStreet)
+		p.address = compileAddress(addrState, addrStreet)
 
 		// Extract heating:
-		heating = detailsElement.Find("dt:contains(\"Šildymas:\")").Next().Text()
+		p.heating = detailsElement.Find("dt:contains(\"Šildymas:\")").Next().Text()
 
 		// Extract floor:
-		tmpStr = detailsElement.Find("dt:contains(\"Kelintame aukšte:\")").Next().Text()
-		if tmpStr != "" {
-			tmpStr = strings.TrimSpace(tmpStr)
-			floor, _ = strconv.Atoi(tmpStr)
+		tmp = detailsElement.Find("dt:contains(\"Kelintame aukšte:\")").Next().Text()
+		if tmp != "" {
+			tmp = strings.TrimSpace(tmp)
+			p.floor, _ = strconv.Atoi(tmp)
 		}
 
 		// Extract floor total:
-		tmpStr = detailsElement.Find("dt:contains(\"Pastato aukštų skaičius:\")").Next().Text()
-		if tmpStr != "" {
-			tmpStr = strings.TrimSpace(tmpStr)
-			floorTotal, _ = strconv.Atoi(tmpStr)
+		tmp = detailsElement.Find("dt:contains(\"Pastato aukštų skaičius:\")").Next().Text()
+		if tmp != "" {
+			tmp = strings.TrimSpace(tmp)
+			p.floorTotal, _ = strconv.Atoi(tmp)
 		}
 
 		// Extract area:
-		tmpStr = detailsElement.Find("dt:contains(\"Bendras plotas, m²:\")").Next().Text()
-		if tmpStr != "" {
-			tmpStr = strings.TrimSpace(tmpStr)
-			area, _ = strconv.Atoi(tmpStr)
+		tmp = detailsElement.Find("dt:contains(\"Bendras plotas, m²:\")").Next().Text()
+		if tmp != "" {
+			tmp = strings.TrimSpace(tmp)
+			p.area, _ = strconv.Atoi(tmp)
 		}
 
 		// Extract price:
-		tmpStr = postDoc.Find("span.price:contains(\"Kaina: \")").Text()
-		if tmpStr != "" {
-			arr := regexRinkaPrice.FindStringSubmatch(tmpStr)
+		tmp = postDoc.Find("span.price:contains(\"Kaina: \")").Text()
+		if tmp != "" {
+			arr := regexRinkaPrice.FindStringSubmatch(tmp)
 			if len(arr) == 2 {
-				price, _ = strconv.Atoi(arr[1])
-			} else if strings.Contains(tmpStr, "Nenurodyta") {
-				price = -1 // so it gets ignored
+				p.price, _ = strconv.Atoi(arr[1])
+			} else if strings.Contains(tmp, "Nenurodyta") {
+				p.price = -1 // so it gets ignored
 			}
 		}
 
 		// Extract rooms:
-		tmpStr = detailsElement.Find("dt:contains(\"Kambarių skaičius:\")").Next().Text()
-		if tmpStr != "" {
-			tmpStr = strings.TrimSpace(tmpStr)
-			rooms, _ = strconv.Atoi(tmpStr)
+		tmp = detailsElement.Find("dt:contains(\"Kambarių skaičius:\")").Next().Text()
+		if tmp != "" {
+			tmp = strings.TrimSpace(tmp)
+			p.rooms, _ = strconv.Atoi(tmp)
 		}
 
 		// Extract year:
-		tmpStr = detailsElement.Find("dt:contains(\"Statybos metai:\")").Next().Text()
-		if tmpStr != "" {
-			tmpStr = strings.TrimSpace(tmpStr)
-			year, _ = strconv.Atoi(tmpStr)
-		}
-
-		p := post{
-			url:         link,
-			phone:       strings.TrimSpace(phone),
-			description: strings.TrimSpace(descr),
-			address:     strings.TrimSpace(addr),
-			heating:     strings.TrimSpace(heating),
-			floor:       floor,
-			floorTotal:  floorTotal,
-			area:        area,
-			price:       price,
-			rooms:       rooms,
-			year:        year,
+		tmp = detailsElement.Find("dt:contains(\"Statybos metai:\")").Next().Text()
+		if tmp != "" {
+			tmp = strings.TrimSpace(tmp)
+			p.year, _ = strconv.Atoi(tmp)
 		}
 
 		go p.processPost()

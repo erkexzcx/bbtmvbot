@@ -18,7 +18,7 @@ func parseDomoplius() {
 	url := "https://m.domoplius.lt/skelbimai/butai?action_type=3&address_1=461&sell_price_from=&sell_price_to=&qt="
 
 	// Get content as Goquery Document:
-	doc, err := downloadAsGoqueryDocument(url)
+	doc, err := getGoqueryDocument(url)
 	if err != nil {
 		log.Println(err)
 		return
@@ -35,37 +35,39 @@ func parseDomoplius() {
 		link := "https://m.domoplius.lt/skelbimai/-" + strings.ReplaceAll(postUpstreamID, "ann_", "") + ".html" // https://m.domoplius.lt/skelbimai/-5806213.html
 
 		// Skip if post already in DB:
-		exists, err := post{url: link}.postExistsInDB()
+		exists, err := postURLInDB(link)
+		if err != nil {
+			log.Println(err)
+			return
+		}
 		if exists {
 			return
 		}
 
 		// Get post's content as Goquery Document:
-		postDoc, err := downloadAsGoqueryDocument(link)
+		postDoc, err := getGoqueryDocument(link)
 		if err != nil {
 			log.Println(err)
 			return
 		}
 
-		//-------------------------------------------------
-		// Define variables:
-		var phone, descr, addr, heating, tmpStr string
-		var floor, floorTotal, area, price, rooms, year int
+		// ------------------------------------------------------------
+		p := post{url: link}
 
 		// Extract phone:
-		phone, err = postDoc.Find("#phone_button_4").Html()
+		tmp, err := postDoc.Find("#phone_button_4").Html()
 		if err == nil {
-			phone = domopliusDecodeNumber(phone)
-			phone = strings.ReplaceAll(phone, " ", "")
+			tmp = domopliusDecodeNumber(tmp)
+			p.phone = strings.ReplaceAll(tmp, " ", "")
 		}
 
 		// Extract description:
-		descr = postDoc.Find("div.container > div.group-comments").Text()
+		p.description = postDoc.Find("div.container > div.group-comments").Text()
 
 		// Extract address:
-		addr = postDoc.Find(".panel > .container > .container > h1").Text()
-		if addr != "" {
-			addr = strings.Split(addr, "nuoma ")[1]
+		tmp = postDoc.Find(".panel > .container > .container > h1").Text()
+		if tmp != "" {
+			p.address = strings.Split(tmp, "nuoma ")[1]
 		}
 
 		// Extract heating:
@@ -73,7 +75,7 @@ func parseDomoplius() {
 		if el.Length() != 0 {
 			el = el.Parent()
 			el.Find("span").Remove()
-			heating = el.Text()
+			p.heating = el.Text()
 		}
 
 		// Extract floor and floor total:
@@ -81,12 +83,12 @@ func parseDomoplius() {
 		if el.Length() != 0 {
 			el = el.Parent()
 			el.Find("span").Remove()
-			tmp := strings.TrimSpace(el.Text())
+			tmp = strings.TrimSpace(el.Text())
 			arr := regexDomopliusExtractFloors.FindStringSubmatch(tmp)
-			floor, _ = strconv.Atoi(tmp) // will be 0 on failure, will be number if success
+			p.floor, _ = strconv.Atoi(tmp) // will be 0 on failure, will be number if success
 			if len(arr) == 3 {
-				floor, _ = strconv.Atoi(arr[1])
-				floorTotal, _ = strconv.Atoi(arr[2])
+				p.floor, _ = strconv.Atoi(arr[1])
+				p.floorTotal, _ = strconv.Atoi(arr[2])
 			}
 		}
 
@@ -95,19 +97,19 @@ func parseDomoplius() {
 		if el.Length() != 0 {
 			el = el.Parent()
 			el.Find("span").Remove()
-			tmpStr = el.Text()
-			tmpStr = strings.TrimSpace(tmpStr)
-			tmpStr = strings.Split(tmpStr, ".")[0]
-			area, _ = strconv.Atoi(tmpStr)
+			tmp = el.Text()
+			tmp = strings.TrimSpace(tmp)
+			tmp = strings.Split(tmp, ".")[0]
+			p.area, _ = strconv.Atoi(tmp)
 		}
 
 		// Extract price:
-		tmpStr = postDoc.Find(".field-price > .price-column > .h1").Text()
-		if tmpStr != "" {
-			tmpStr = strings.TrimSpace(tmpStr)
-			tmpStr = strings.ReplaceAll(tmpStr, " ", "")
-			tmpStr = strings.ReplaceAll(tmpStr, "€", "")
-			price, _ = strconv.Atoi(tmpStr)
+		tmp = postDoc.Find(".field-price > .price-column > .h1").Text()
+		if tmp != "" {
+			tmp = strings.TrimSpace(tmp)
+			tmp = strings.ReplaceAll(tmp, " ", "")
+			tmp = strings.ReplaceAll(tmp, "€", "")
+			p.price, _ = strconv.Atoi(tmp)
 		}
 
 		// Extract rooms:
@@ -115,9 +117,9 @@ func parseDomoplius() {
 		if el.Length() != 0 {
 			el = el.Parent()
 			el.Find("span").Remove()
-			tmpStr = el.Text()
-			tmpStr = strings.TrimSpace(tmpStr)
-			rooms, _ = strconv.Atoi(tmpStr)
+			tmp = el.Text()
+			tmp = strings.TrimSpace(tmp)
+			p.rooms, _ = strconv.Atoi(tmp)
 		}
 
 		// Extract year:
@@ -125,23 +127,9 @@ func parseDomoplius() {
 		if el.Length() != 0 {
 			el = el.Parent()
 			el.Find("span").Remove()
-			tmpStr = el.Text()
-			tmpStr = strings.TrimSpace(tmpStr)
-			year, _ = strconv.Atoi(tmpStr)
-		}
-
-		p := post{
-			url:         link,
-			phone:       strings.TrimSpace(phone),
-			description: strings.TrimSpace(descr),
-			address:     strings.TrimSpace(addr),
-			heating:     strings.TrimSpace(heating),
-			floor:       floor,
-			floorTotal:  floorTotal,
-			area:        area,
-			price:       price,
-			rooms:       rooms,
-			year:        year,
+			tmp = el.Text()
+			tmp = strings.TrimSpace(tmp)
+			p.year, _ = strconv.Atoi(tmp)
 		}
 
 		go p.processPost()

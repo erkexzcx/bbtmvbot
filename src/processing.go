@@ -45,16 +45,31 @@ var exlusionRegexes = map[string]*regexp.Regexp{
 // Note that post is already checked against DB in parsing functions!
 func (p post) processPost() {
 
+	// Trim values
+	p.url = strings.TrimSpace(p.url)
+	p.phone = strings.TrimSpace(p.phone)
+	p.description = strings.TrimSpace(p.description)
+	p.address = strings.TrimSpace(p.address)
+	p.heating = strings.TrimSpace(p.heating)
+
 	// Check if we need to exclude this post
 	excluded, reason := p.isExcluded()
 	if excluded {
-		rowID := p.addToDB(true, reason)
+		rowID, err := p.addToDB(true, reason)
+		if err != nil {
+			log.Println(err)
+			return
+		}
 		log.Println("// Excluded ", rowID, "|", reason)
 		return
 	}
 
 	// Add to database, so it won't be sent again
-	rowID := p.addToDB(false, "")
+	rowID, err := p.addToDB(false, "")
+	if err != nil {
+		log.Println(err)
+		return
+	}
 
 	// Send to users
 	p.sendToUsers(rowID)
@@ -137,42 +152,32 @@ func (p *post) compileMessage(ID int64) string {
 	return b.String()
 }
 
-func (p post) addToDB(excluded bool, reason string) int64 {
+func (p post) addToDB(excluded bool, reason string) (int64, error) {
 
 	var excludedVal int
 	if excluded {
 		excludedVal = 1
 	}
 
-	tx, err := db.Begin()
+	query := "INSERT INTO posts(url, excluded, reason) values (?, ?, ?)"
+	res, err := db.Exec(query, p.url, excludedVal, reason)
 	if err != nil {
-		log.Fatal(err)
+		return 0, err
 	}
-	stmt, err := tx.Prepare("INSERT INTO posts(url, excluded, reason) values (?, ?, ?)")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer stmt.Close()
-	res, err := stmt.Exec(p.url, excludedVal, reason)
-	if err != nil {
-		log.Fatal(err)
-	}
-	tx.Commit()
 
 	lastInsertedID, err := res.LastInsertId()
 	if err != nil {
-		log.Println(err)
-		return -1
+		return 0, err
 	}
-	return lastInsertedID
+	return lastInsertedID, err
 
 }
 
-func (p post) postExistsInDB() (bool, error) {
+func postURLInDB(link string) (bool, error) {
 	var count int // Will store count here
 
-	sql := fmt.Sprintf("SELECT COUNT(*) AS count FROM posts WHERE url=\"%s\" LIMIT 1", p.url)
-	err := db.QueryRow(sql).Scan(&count)
+	query := "SELECT COUNT(*) AS count FROM posts WHERE url=? LIMIT 1"
+	err := db.QueryRow(query, link).Scan(&count)
 
 	if err != nil {
 		log.Println(err)
@@ -187,17 +192,16 @@ func (p post) postExistsInDB() (bool, error) {
 
 func (p post) sendToUsers(postID int64) {
 
-	sql := fmt.Sprintf(`
+	query := `
 	SELECT id FROM users WHERE
 	enabled=1 AND
-	((price_from <= %d AND price_to >= %d) OR %d = 0) AND
-	((rooms_from <= %d AND rooms_to >= %d) OR %d = 0) AND
-	(year_from <= %d OR %d = 0)`,
-		p.price, p.price, p.price,
-		p.rooms, p.rooms, p.rooms,
-		p.year, p.year)
+	((price_from <= ? AND price_to >= ?) OR ? = 0) AND
+	((rooms_from <= ? AND rooms_to >= ?) OR ? = 0) AND
+	(year_from <= ? OR ? = 0)`
 
-	rows, err := db.Query(sql)
+	rows, err := db.Query(query, p.price, p.price,
+		p.price, p.rooms, p.rooms,
+		p.rooms, p.year, p.year)
 	if err != nil {
 		log.Println(err)
 		return
