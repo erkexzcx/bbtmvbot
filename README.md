@@ -37,8 +37,8 @@ pacman -S go sqlite
 Then install required go dependencies using below commands:
 ```
 go get -u gopkg.in/tucnak/telebot.v2
-go get github.com/mattn/go-sqlite3
-go get github.com/PuerkitoBio/goquery
+go get -u github.com/mattn/go-sqlite3
+go get -u github.com/PuerkitoBio/goquery
 ```
 
 Then download the project:
