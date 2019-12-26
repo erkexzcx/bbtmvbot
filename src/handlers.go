@@ -12,6 +12,16 @@ import (
 	tb "gopkg.in/tucnak/telebot.v2"
 )
 
+type statusChangeType struct {
+	value   int
+	message string
+}
+
+var (
+	disableMessages = statusChangeType{value: 0, message: "Pranešimai išjungti! Naudokite komandą /enable kad juos įjungti."}
+	enableMessages  = statusChangeType{value: 1, message: "Pranešimai įjungti! Naudokite komandą /disable kad juos išjungti."}
+)
+
 func handleCommandStats(m *tb.Message) {
 	s, err := getStats()
 	if err != nil {
@@ -27,24 +37,17 @@ func handleCommandStats(m *tb.Message) {
 }
 
 func handleCommandEnable(m *tb.Message) {
-	query := "UPDATE users SET enabled=1 WHERE id=?"
-	_, err := db.Exec(query, m.Sender.ID)
-	if err != nil {
-		sendTo(m.Sender, errorText)
-		return
-	}
-
-	ActiveSettingsText, err := getActiveSettingsText(m.Sender)
-	if err != nil {
-		sendTo(m.Sender, errorText)
-		return
-	}
-	sendTo(m.Sender, "Pranešimai įjungti! Naudokite komandą /disable kad juos išjungti.\n\n"+ActiveSettingsText)
+	handleUserStatusChange(m, enableMessages)
 }
 
 func handleCommandDisable(m *tb.Message) {
-	query := "UPDATE users SET enabled=0 WHERE id=?"
-	_, err := db.Exec(query, m.Sender.ID)
+	handleUserStatusChange(m, disableMessages)
+}
+
+func handleUserStatusChange(m *tb.Message, stateStatus statusChangeType) {
+	message := stateStatus.message
+	query := "UPDATE users SET enabled=? WHERE id=?"
+	_, err := db.Exec(query, stateStatus.value, m.Sender.ID)
 	if err != nil {
 		sendTo(m.Sender, errorText)
 		return
@@ -55,7 +58,7 @@ func handleCommandDisable(m *tb.Message) {
 		sendTo(m.Sender, errorText)
 		return
 	}
-	sendTo(m.Sender, "Pranešimai išjungti! Naudokite komandą /enable kad juos įjungti.\n\n"+ActiveSettingsText)
+	sendTo(m.Sender, message+"\n\n"+ActiveSettingsText)
 }
 
 var validConfig = regexp.MustCompile(`^\/config (\d{1,5}) (\d{1,5}) (\d{1,2}) (\d{1,2}) (\d{4})$`)
