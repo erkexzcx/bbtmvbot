@@ -33,7 +33,7 @@ var exclusionKeywords = []string{
 }
 
 var exlusionRegexes = map[string]*regexp.Regexp{
-	"regex1": regexp.MustCompile(`(agent|tarpinink|vienkart)\S+ mokestis[\s:]{0,3}\d+`),
+	"regex1": regexp.MustCompile(`(agent|tarpinink|vienkart)\S+ mokestis[\s:-]{0,3}\d+`),
 	"regex2": regexp.MustCompile(`\d+\s{0,1}\S+ (agent|tarpinink|vienkart)\S+ (tarp|mokest)\S+`),
 	"regex3": regexp.MustCompile(`\W(yra|bus) (taikoma(s|)|imama(s|)|vienkartinis|agent\S+)( vienkartinis|) (agent|tarpinink|mokest)\S+`),
 	"regex4": regexp.MustCompile(`\Wtiks[^\s\w]{0,1}\s{0,1}(bus|yra|) (taikoma(s|)|imama(s|))`),
