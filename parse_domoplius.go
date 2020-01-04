@@ -154,5 +154,18 @@ func domopliusDecodeNumber(str string) string {
 		msg += mymap[v]
 	}
 
-	return strings.ReplaceAll(msg, " ", "")
+	// Remove spaces
+	msg = strings.ReplaceAll(msg, " ", "")
+
+	// Replace 00 in the beginning to +
+	if strings.HasPrefix(msg, "00") {
+		msg = strings.Replace(msg, "00", "+", 1)
+	}
+
+	// Replace 86 in the beginning to +3706
+	if strings.HasPrefix(msg, "86") {
+		msg = strings.Replace(msg, "86", "+3706", 1)
+	}
+
+	return msg
 }
