@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -37,11 +36,6 @@ type stats struct {
 var bot *tb.Bot
 
 var db *sql.DB
-
-// We need to ensure that only one goroutine at a time can access `sendTo` function:
-var telegramMux sync.Mutex
-var startTime time.Time
-var elapsedTime time.Duration
 
 func main() {
 
@@ -121,9 +115,15 @@ func getActiveSettingsText(sender *tb.User) (string, error) {
 	return msg, nil
 }
 
+// We need to ensure that only one goroutine at a time can access `sendTo` function:
+var telegramMux sync.Mutex
+var startTime time.Time
+var elapsedTime time.Duration
+
 func sendTo(sender *tb.User, msg string) {
 	go func() {
 		telegramMux.Lock()
+		defer telegramMux.Unlock()
 
 		startTime = time.Now()
 		bot.Send(sender, msg, &tb.SendOptions{
@@ -136,18 +136,15 @@ func sendTo(sender *tb.User, msg string) {
 		if elapsedTime < 30*time.Millisecond {
 			time.Sleep(30*time.Millisecond - elapsedTime)
 		}
-
-		telegramMux.Unlock()
 	}()
 }
 
 func readAPIFromFile() string {
-	apiBytes, err := ioutil.ReadFile("telegram.conf")
+	content, err := ioutil.ReadFile("telegram.conf")
 	if err != nil {
-		log.Println("Unable to read API from file:", err)
-		os.Exit(1) // exit with return code 1
+		panic(err)
 	}
-	return strings.TrimSpace(string(apiBytes))
+	return strings.TrimSpace(string(content))
 }
 
 func ensureUserInDB(userID int) {
