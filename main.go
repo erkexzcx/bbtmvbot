@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"net/http"
 	"os"
 	"strings"
 	"sync"
@@ -35,9 +34,9 @@ type stats struct {
 	averageRoomsTo    int
 }
 
-var db *sql.DB
-
 var bot *tb.Bot
+
+var db *sql.DB
 
 // We need to ensure that only one goroutine at a time can access `sendTo` function:
 var telegramMux sync.Mutex
@@ -46,17 +45,19 @@ var elapsedTime time.Duration
 
 func main() {
 
+	var err error
+
 	// Connect to DB
-	databaseConnect()
+	db, err = sql.Open("sqlite3", "file:./database.db?_mutex=full")
+	if err != nil {
+		log.Println(err)
+	}
 	defer db.Close()
 
-	// Start web server for InfluxDB data
-	go func() {
-		http.HandleFunc("/influx", handleRequestInflux)
-		log.Fatal(http.ListenAndServe(":3999", nil))
-	}()
+	// Start web server for Influx line protocol stats
+	go initInflux()
 
-	// Setup Telegrambot API
+	// Connect to Telegram bot
 	poller := &tb.LongPoller{Timeout: 15 * time.Second}
 	middlewarePoller := tb.NewMiddlewarePoller(poller, func(upd *tb.Update) bool {
 
@@ -66,22 +67,14 @@ func main() {
 			return false
 		}
 
-		// Make sure user exists in database
-		if !ensureUserInDB(upd.Message.Sender.ID) {
-			sendTo(upd.Message.Sender, errorText)
-		}
+		ensureUserInDB(upd.Message.Sender.ID)
 
-		// Always accept all updates from Telegram
+		// Always accept update from Telegram bot
 		return true
 	})
-	var err error
-	bot, err = tb.NewBot(tb.Settings{
-		Token: readAPIFromFile(), URL: "",
-		Poller: middlewarePoller,
-	})
+	bot, err = tb.NewBot(tb.Settings{Token: readAPIFromFile(), URL: "", Poller: middlewarePoller})
 	if err != nil {
-		log.Println(err)
-		return
+		panic(err)
 	}
 
 	bot.Handle("/help", handleCommandHelp)
@@ -90,7 +83,7 @@ func main() {
 	bot.Handle("/disable", handleCommandDisable)
 	bot.Handle("/stats", handleCommandStats)
 
-	// Start parsers in separate goroutines:
+	// Start parsers in separate goroutine:
 	go func() {
 		time.Sleep(5 * time.Second) // Wait few seconds so Telegram bot starts up
 		for {
@@ -107,14 +100,6 @@ func main() {
 
 	// Start bot:
 	bot.Start()
-}
-
-func databaseConnect() {
-	var err error
-	db, err = sql.Open("sqlite3", "file:./database.db?_mutex=full")
-	if err != nil {
-		log.Println(err)
-	}
 }
 
 func getActiveSettingsText(sender *tb.User) (string, error) {
@@ -165,25 +150,20 @@ func readAPIFromFile() string {
 	return strings.TrimSpace(string(apiBytes))
 }
 
-func ensureUserInDB(userID int) bool {
+func ensureUserInDB(userID int) {
 	query := "INSERT OR IGNORE INTO users(id) VALUES(?)"
 	_, err := db.Exec(query, userID)
 	if err != nil {
-		log.Println(err)
-		return false
+		panic(err)
 	}
-	return true
 }
 
 func getUser(userID int) (user, error) {
 	query := "SELECT * FROM users WHERE id=? LIMIT 1"
 	var u user
-	err := db.QueryRow(query, userID).Scan(&u.id, &u.enabled,
-		&u.priceFrom, &u.priceTo, &u.roomsFrom,
-		&u.roomsTo, &u.yearFrom)
+	err := db.QueryRow(query, userID).Scan(&u.id, &u.enabled, &u.priceFrom, &u.priceTo, &u.roomsFrom, &u.roomsTo, &u.yearFrom)
 	if err != nil {
-		log.Println(err)
-		return user{}, err
+		panic(err)
 	}
 	return u, nil
 }

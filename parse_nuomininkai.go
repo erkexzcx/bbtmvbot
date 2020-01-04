@@ -9,56 +9,49 @@ import (
 )
 
 func parseNuomininkai() {
-
-	url := "https://nuomininkai.lt/paieska/?propery_type=butu-nuoma&propery_contract_type=&propery_location=461&imic_property_district=&new_quartals=&min_price=&max_price=&min_price_meter=&max_price_meter=&min_area=&max_area=&rooms_from=&rooms_to=&high_from=&high_to=&floor_type=&irengimas=&building_type=&house_year_from=&house_year_to=&zm_skaicius=&lot_size_from=&lot_size_to=&by_date="
-
-	// Get content as Goquery Document:
-	doc, err := getGoqueryDocument(url)
+	// Download page
+	doc, err := fetchDocument(parseLinkNuomininkai)
 	if err != nil {
 		log.Println(err)
 		return
 	}
 
-	// For each post in page:
+	// Iterate posts in webpage
 	doc.Find("#property_grid_holder > .property_element").Each(func(i int, s *goquery.Selection) {
 
-		// Get postURL:
-		postUpstreamID, exists := s.Find("h3 > a").Attr("href")
+		p := &Post{}
+
+		upstreamID, exists := s.Find("h3 > a").Attr("href")
 		if !exists {
 			return
 		}
-		link := postUpstreamID // https://nuomininkai.lt/skelbimas/vilniaus-m-sav-vilniaus-m-pilaite-i-kanto-al-isnuomojamas-1-kambario-butas-pilaiteje/
+		p.Link = upstreamID // https://nuomininkai.lt/skelbimas/vilniaus-m-sav-vilniaus-m-pilaite-i-kanto-al-isnuomojamas-1-kambario-butas-pilaiteje/
 
-		// Skip if post already in DB:
-		exists, err := postURLInDB(link)
-		if err != nil {
-			log.Println(err)
-			return
-		}
-		if exists {
+		// Skip if already in database:
+		if p.InDatabase() {
 			return
 		}
 
 		// Get post's content as Goquery Document:
-		postDoc, err := getGoqueryDocument(link)
+		postDoc, err := fetchDocument(p.Link)
 		if err != nil {
 			log.Println(err)
 			return
 		}
 
 		// ------------------------------------------------------------
-		p := post{url: link}
+
 		var tmp string
 
 		// Extract phone:
 		el := postDoc.Find("h4 > i.fa-mobile").Parent()
 		el.Find("i").Remove()
-		p.phone = strings.ReplaceAll(el.Text(), " ", "")
+		p.Phone = strings.ReplaceAll(el.Text(), " ", "")
 
 		// Extract description:
 		// Extracts together with details table, but we dont care since
 		// we dont store description anyway...
-		p.description = postDoc.Find("#description").Text()
+		p.Description = postDoc.Find("#description").Text()
 
 		// Extract address:
 		detailsElement := postDoc.Find("#description > table.table-details")
@@ -66,7 +59,7 @@ func parseNuomininkai() {
 		addrStreet := detailsElement.Find("td.table-details-name:contains(\"Adresas\")").Next().Text()
 		addrState = strings.TrimSpace(addrState)
 		addrStreet = strings.TrimSpace(addrStreet)
-		p.address = compileAddress(addrState, addrStreet)
+		p.Address = compileAddress(addrState, addrStreet)
 
 		// Extract heating:
 		// Not possible
@@ -75,14 +68,14 @@ func parseNuomininkai() {
 		tmp = detailsElement.Find("td.table-details-name:contains(\"Aukštas\")").Next().Text()
 		if tmp != "" {
 			tmp = strings.TrimSpace(tmp)
-			p.floor, _ = strconv.Atoi(tmp)
+			p.Floor, _ = strconv.Atoi(tmp)
 		}
 
 		// Extract floor total:
 		tmp = detailsElement.Find("td.table-details-name:contains(\"Aukštų sk.\")").Next().Text()
 		if tmp != "" {
 			tmp = strings.TrimSpace(tmp)
-			p.floorTotal, _ = strconv.Atoi(tmp)
+			p.FloorTotal, _ = strconv.Atoi(tmp)
 		}
 
 		// Extract area:
@@ -92,7 +85,7 @@ func parseNuomininkai() {
 			if strings.Contains(tmp, ".") {
 				tmp = strings.Split(tmp, ".")[0]
 			}
-			p.area, _ = strconv.Atoi(tmp)
+			p.Area, _ = strconv.Atoi(tmp)
 		}
 
 		// Extract price:
@@ -101,24 +94,24 @@ func parseNuomininkai() {
 			tmp = strings.TrimSpace(tmp)
 			tmp = strings.ReplaceAll(tmp, " ", "")
 			tmp = strings.ReplaceAll(tmp, "€", "")
-			p.price, _ = strconv.Atoi(tmp)
+			p.Price, _ = strconv.Atoi(tmp)
 		}
 
 		// Extract rooms:
 		tmp = detailsElement.Find("td.table-details-name:contains(\"Kambarių skaičius\")").Next().Text()
 		if tmp != "" {
 			tmp = strings.TrimSpace(tmp)
-			p.rooms, _ = strconv.Atoi(tmp)
+			p.Rooms, _ = strconv.Atoi(tmp)
 		}
 
 		// Extract year:
 		tmp = detailsElement.Find("td.table-details-name:contains(\"Metai\")").Next().Text()
 		if tmp != "" {
 			tmp = strings.TrimSpace(tmp)
-			p.year, _ = strconv.Atoi(tmp)
+			p.Year, _ = strconv.Atoi(tmp)
 		}
 
-		go p.processPost()
+		go p.Handle()
 	})
 
 }
