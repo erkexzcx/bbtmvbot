@@ -27,24 +27,12 @@ Once you set-up bot, you should have your bot's Telegram **API key**.
 
 ### Set-up application
 
-Installation will cover only Arch Linux, but it's basically the same for any other Linux distribution.
-
-Install required packages:
-```
-pacman -S go sqlite
-```
-
-Then install required go dependencies using below commands:
-```
-go get -u gopkg.in/tucnak/telebot.v2
-go get -u github.com/mattn/go-sqlite3
-go get -u github.com/PuerkitoBio/goquery
-```
+Install `go` and `sqlite` packages. Note that you need latest version of `go` (most debian/ubuntu distributions has outdated version).
 
 Then download the project:
 ```
 git clone https://github.com/erkexzcx/BBTMV-bot.git
-cd BBTMV-bot
+cd bbtmvbot
 ```
 
 Then create file `telegram.conf` and save your bot's Telegram **API key**:
@@ -59,7 +47,7 @@ cat createdb.sql | sqlite3 database.db
 
 Then compile this application:
 ```
-go build -o bbtmvbot src/*.go
+go build -o bbtmvbot
 ```
 
 And finally, run:
@@ -70,7 +58,7 @@ And finally, run:
 To update this app, simply pull latest changes & recompile:
 ```
 git pull
-go build -o bbtmvbot src/*.go
+go build -o bbtmvbot
 ```
 
 ### (Optional) InfluxDB/Grafana monitoring
