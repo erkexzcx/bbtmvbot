@@ -17,7 +17,7 @@ func parseSkelbiu() {
 	}
 
 	// Iterate posts in webpage
-	doc.Find("#itemsList > ul > li.simpleAds").Each(func(i int, s *goquery.Selection) {
+	doc.Find("#itemsList > ul > li.simpleAds:not(.passivatedItem)").Each(func(i int, s *goquery.Selection) {
 
 		p := &Post{}
 
