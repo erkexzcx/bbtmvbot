@@ -29,13 +29,11 @@ func handleInfluxRequest(w http.ResponseWriter, r *http.Request) {
 	UNION SELECT 'posts' AS "type", 'total' AS "key", (SELECT COUNT(*) FROM posts) AS "value"
 	UNION SELECT 'posts' AS "type", 'excluded' AS "key", (SELECT COUNT(*) FROM posts WHERE excluded=1) AS "value"
 	UNION SELECT 'posts' AS "type", 'sent' AS "key", (SELECT COUNT(*) FROM posts WHERE excluded=0) AS "value"
-	UNION SELECT 'posts' AS "type", 'no_price' AS "key", (SELECT COUNT(*) FROM posts WHERE reason="0eur price") AS "value"
-	`
+	UNION SELECT 'posts' AS "type", 'no_price' AS "key", (SELECT COUNT(*) FROM posts WHERE reason="0eur price") AS "value"`
 
 	rows, err := db.Query(query)
 	if err != nil {
-		log.Println(err)
-		return
+		panic(err)
 	}
 	defer rows.Close()
 
@@ -43,14 +41,11 @@ func handleInfluxRequest(w http.ResponseWriter, r *http.Request) {
 		var typ, key, value string
 		err = rows.Scan(&typ, &key, &value)
 		if err != nil {
-			log.Println(err)
-			return
+			panic(err)
 		}
-
 		fmt.Fprintf(w, "bbtmvbot,type=%s,key=%s value=%s\n", typ, key, value)
 	}
-	if rows.Err() != nil {
-		log.Println(err)
-		return
+	if err := rows.Err(); err != nil {
+		panic(err)
 	}
 }
