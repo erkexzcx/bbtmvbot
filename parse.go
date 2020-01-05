@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -43,8 +44,10 @@ func compileAddress(district, street string) (address string) {
 	return
 }
 
+var httpClient = &http.Client{Timeout: time.Second * 30}
+
 func fetch(link string) ([]byte, error) {
-	res, err := http.Get(link)
+	res, err := httpClient.Get(link)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +67,7 @@ func fetch(link string) ([]byte, error) {
 }
 
 func fetchDocument(link string) (*goquery.Document, error) {
-	res, err := http.Get(link)
+	res, err := httpClient.Get(link)
 	if err != nil {
 		return nil, err
 	}
