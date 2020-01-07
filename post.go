@@ -37,18 +37,19 @@ var feeKeywords = []string{
 var feeRegexes = map[string]*regexp.Regexp{
 	"regex1": regexp.MustCompile(`(agent|tarpinink|vienkart)\S+ mokestis[\s:-]{0,3}\d+`),
 	"regex2": regexp.MustCompile(`\d+\s{0,1}\S+ (agent|tarpinink|vienkart)\S+ (tarp|mokest)\S+`),
-	"regex3": regexp.MustCompile(`\W(yra|bus) (taikoma(s|)|imama(s|)|vienkartinis|agent\S+)( vienkartinis|) (agent|tarpinink|mokest)\S+`),
-	"regex4": regexp.MustCompile(`\Wtiks[^\s\w]{0,1}\s{0,1}(bus|yra|) (taikoma(s|)|imama(s|))`),
-	"regex5": regexp.MustCompile(`\W(yra |)(taikoma(s|)|imama(s|)|vienkartinis|sutarties)( sutarties|) sudar\S+ mokestis`),
-	"regex6": regexp.MustCompile(`(ui|ir) (yra |)(taikoma(s|)|imama(s|)) (vienkart|agent|tarpinink|mokest)\S+`),
+	"regex3": regexp.MustCompile(`\W(ira|bus) (taikoma(s|)|imama(s|)|vienkartinis|agent\S+)( vienkartinis|) (agent|tarpinink|mokest)\S+`),
+	"regex4": regexp.MustCompile(`\Wtiks[^\s\w]{0,1}\s{0,1}(bus|ira|) (taikoma(s|)|imama(s|))`),
+	"regex5": regexp.MustCompile(`\W(ira |)(taikoma(s|)|imama(s|)|vienkartinis|sutarties)( sutarties|) sudar\S+ mokestis`),
+	"regex6": regexp.MustCompile(`(ui|ir) (ira |)(taikoma(s|)|imama(s|)) (vienkart|agent|tarpinink|mokest)\S+`),
 	"regex7": regexp.MustCompile(`(vienkartinis |)(agent|tarpinink)\S+ mokest\S+,{0,1} jei`),
 	"regex8": regexp.MustCompile(`[^\w\s](\s|)(taikoma(s|)|imama(s|)|vienkartinis|agent\S+)( vienkartinis|) (agent|tarpinink|mokest)\S+`),
 }
 
 // Fee returns true (and a reason) if post contain broker's fee.
 func (p *Post) hasFee() (excluded bool, reason string) {
-	// Convert description to lowercase
-	d := strings.ToLower(p.Description)
+
+	// Process description:
+	d := processDescription(p.Description)
 
 	// Check against keywords
 	for _, v := range feeKeywords {
@@ -72,6 +73,28 @@ func (p *Post) hasFee() (excluded bool, reason string) {
 	}
 
 	return false, ""
+}
+
+func processDescription(d string) string {
+	// Convert description to lowercase
+	d = strings.ToLower(d)
+
+	// Remove diacrytics from Lithuanian language
+	r := strings.NewReplacer(
+		"ą", "a",
+		"č", "c",
+		"ę", "e",
+		"ė", "e",
+		"į", "i",
+		"š", "s",
+		"ų", "u",
+		"ū", "u",
+		"ž", "z",
+		"y", "i", // Replace y with i, because some people are bad at writting
+	)
+	d = r.Replace(d)
+
+	return d
 }
 
 // Message compiles post information to a sendable Telegram message (string).
