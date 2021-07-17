@@ -13,6 +13,7 @@ import (
 )
 
 func initTelegramHandlers() {
+	tb.Handle("/start", handleCommandInfo)
 	tb.Handle("/info", handleCommandInfo)
 	tb.Handle("/enable", handleCommandEnable)
 	tb.Handle("/disable", handleCommandDisable)
@@ -53,9 +54,9 @@ func handleCommandDisable(m *telebot.Message) {
 
 var reConfigCommand = regexp.MustCompile(`^\/config (\d{1,5}) (\d{1,5}) (\d{1,2}) (\d{1,2}) (\d{4})$`)
 
-const configText = "Naudokite tokį formatą:\n\n```\n/config <kaina_nuo> <kaina_iki> <kambariai_nuo> <kambariai_iki> <metai_nuo>\n```\nPavyzdys:\n```\n/config 200 330 1 2 2000\n```"
+const configText = "Use this format:\n\n```\n/config <price_from> <price_to> <rooms_from> <rooms_to> <year_from>\n```\nExample:\n```\n/config 200 330 1 2 2000\n```"
 
-const configErrorText = "Neteisinga įvestis! " + configText
+const configErrorText = "Wrong input! " + configText
 
 func handleCommandConfig(m *telebot.Message) {
 	msg := strings.ToLower(strings.TrimSpace(m.Text))
