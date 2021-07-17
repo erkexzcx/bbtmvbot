@@ -1,21 +1,26 @@
+package database
+
+const CREATE_DB = `
 BEGIN TRANSACTION;
 CREATE TABLE IF NOT EXISTS "users" (
-	"id"	INTEGER NOT NULL UNIQUE,
+	"telegram_id"	INTEGER NOT NULL UNIQUE,
 	"enabled"	INTEGER NOT NULL DEFAULT 0,
 	"price_from"	INTEGER NOT NULL DEFAULT 0,
 	"price_to"	INTEGER NOT NULL DEFAULT 0,
 	"rooms_from"	INTEGER NOT NULL DEFAULT 0,
 	"rooms_to"	INTEGER NOT NULL DEFAULT 0,
 	"year_from"	INTEGER NOT NULL DEFAULT 0,
-	PRIMARY KEY("id")
+	PRIMARY KEY("telegram_id")
 );
 CREATE TABLE IF NOT EXISTS "posts" (
 	"id"	INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
-	"url"	INTEGER NOT NULL UNIQUE,
+	"link"	TEXT NOT NULL UNIQUE,
 	"excluded"	INTEGER NOT NULL,
-	"reason"	TEXT NOT NULL
+	"reason"	TEXT NOT NULL,
+	"last_seen"	TEXT NOT NULL
 );
-CREATE UNIQUE INDEX IF NOT EXISTS "index_posts_url" ON "posts" (
-	"url"
+CREATE UNIQUE INDEX IF NOT EXISTS "index_posts_link" ON "posts" (
+	"link"
 );
 COMMIT;
+`
