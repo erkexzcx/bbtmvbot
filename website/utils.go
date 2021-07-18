@@ -53,3 +53,27 @@ func GetResponse(link string) (*http.Response, error) {
 
 	return nil, errors.New(link + " returned HTTP code " + strconv.Itoa(resp.StatusCode))
 }
+
+func CompileAddress(district, street string) (address string) {
+	if district == "" {
+		address = "Vilnius"
+	} else if street == "" {
+		address = "Vilnius, " + district
+	} else {
+		address = "Vilnius, " + district + ", " + street
+	}
+	return
+}
+
+func CompileAddressWithStreet(district, street, houseNumber string) (address string) {
+	if district == "" {
+		address = "Vilnius"
+	} else if street == "" {
+		address = "Vilnius, " + district
+	} else if houseNumber == "" {
+		address = "Vilnius, " + district + ", " + street
+	} else {
+		address = "Vilnius, " + district + ", " + street + " " + houseNumber
+	}
+	return
+}
