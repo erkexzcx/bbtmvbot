@@ -40,13 +40,15 @@ func Start(c *config.Config, dbPath *string) {
 	initTelegramHandlers()
 
 	// Setup cronjob
-	location, err := time.LoadLocation("Europe/Vilnius")
-	if err != nil {
-		log.Fatalln(err)
-	}
+	location, _ := time.LoadLocation("Europe/Vilnius")
 	s := gocron.NewScheduler(location)
 	s.Every("3m").Do(refreshWebsites) // Retrieve new posts, send to users
 	s.Every("24h").Do(cleanup)        // Cleanup (remove posts that are not seen in the last 30 days)
+
+	go func() {
+		time.Sleep(2 * time.Second)
+		refreshWebsites()
+	}()
 
 	// Start telegram bot
 	tb.Start()
@@ -56,11 +58,7 @@ func refreshWebsites() {
 	for title, site := range website.Websites {
 
 		go func(title string, site website.Website) {
-			posts, err := site.Retrieve(db)
-			if err != nil {
-				log.Println("Failed to retrieve new posts from '"+title+"':", err)
-				return
-			}
+			posts := site.Retrieve(db)
 			for _, post := range posts {
 				go processPost(post)
 			}
@@ -70,9 +68,19 @@ func refreshWebsites() {
 }
 
 func processPost(post *website.Post) {
+	if post.IsExcludable() {
+		db.AddPost(post.Link)
+		return
+	}
 
+	insertedPostID := db.AddPost(post.Link)
+
+	telegramIDs := db.GetInterestedTelegramIDs(post.Price, post.Rooms, post.Year)
+	for _, telegramID := range telegramIDs {
+		sendTelegram(telegramID, post.FormatTelegramMessage(insertedPostID))
+	}
 }
 
 func cleanup() {
-
+	db.DeleteOldPosts() // Older than 30 days
 }

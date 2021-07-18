@@ -4,9 +4,33 @@ import (
 	"database/sql"
 	"log"
 	"os"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 )
+
+const CREATE_DB = `
+BEGIN TRANSACTION;
+CREATE TABLE IF NOT EXISTS "users" (
+	"telegram_id"	INTEGER NOT NULL UNIQUE,
+	"enabled"	INTEGER NOT NULL DEFAULT 0,
+	"price_from"	INTEGER NOT NULL DEFAULT 0,
+	"price_to"	INTEGER NOT NULL DEFAULT 0,
+	"rooms_from"	INTEGER NOT NULL DEFAULT 0,
+	"rooms_to"	INTEGER NOT NULL DEFAULT 0,
+	"year_from"	INTEGER NOT NULL DEFAULT 0,
+	PRIMARY KEY("telegram_id")
+);
+CREATE TABLE IF NOT EXISTS "posts" (
+	"id"	INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
+	"link"	TEXT NOT NULL UNIQUE,
+	"last_seen"	INTEGER NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "index_posts_link" ON "posts" (
+	"link"
+);
+COMMIT;
+`
 
 type Database struct {
 	db *sql.DB
@@ -34,16 +58,25 @@ type User struct {
 	YearFrom   int
 }
 
-type Post struct {
-	ID       int
-	Link     string
-	Excluded bool
-	Reason   string
-	LastSeen string
-}
-
-func (d *Database) Users() []*User {
-	return nil
+func (d *Database) GetInterestedTelegramIDs(price, rooms, year int) []int64 {
+	telegram_IDs := make([]int64, 0)
+	query := "SELECT telegram_id FROM users WHERE enabled=1 AND ? >= price_from AND ? <= price_to AND ? >= rooms_from AND ? <= rooms_to AND ? >= year_from"
+	rows, err := d.db.Query(query, price, price, rooms, rooms, year)
+	if err != nil {
+		panic(err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var telegramID int64
+		if err = rows.Scan(&telegramID); err != nil {
+			panic(err)
+		}
+		telegram_IDs = append(telegram_IDs, telegramID)
+	}
+	if err = rows.Err(); err != nil {
+		panic(err)
+	}
+	return telegram_IDs
 }
 
 func (d *Database) EnsureUserInDB(telegramID int64) {
@@ -54,13 +87,43 @@ func (d *Database) EnsureUserInDB(telegramID int64) {
 	}
 }
 
-func (d *Database) LinkInDatabase(link string) bool {
+func (d *Database) InDatabase(link string) bool {
 	var count int
 	err := d.db.QueryRow("SELECT COUNT(*) AS count FROM posts WHERE link=? LIMIT 1", link).Scan(&count)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	return count > 0
+	if count <= 0 {
+		return false
+	}
+	query := "UPDATE posts SET last_seen=? WHERE link=?"
+	_, err = d.db.Exec(query, time.Now().Unix(), link)
+	if err != nil {
+		panic(err)
+	}
+	return true
+}
+
+func (d *Database) AddPost(link string) int64 {
+	query := "INSERT INTO posts(link, last_seen) VALUES(?, ?)"
+	res, err := d.db.Exec(query, link, time.Now().Unix())
+	if err != nil {
+		panic(err)
+	}
+	id, err := res.LastInsertId()
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
+// Delete posts older than 30 days
+func (d *Database) DeleteOldPosts() {
+	query := "DELETE FROM posts WHERE last_seen < ?"
+	_, err := d.db.Exec(query, time.Now().AddDate(0, 0, -30).Unix())
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (d *Database) GetUser(telegramID int64) *User {
