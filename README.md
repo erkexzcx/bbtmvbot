@@ -26,12 +26,26 @@ Once you set-up bot, you should have your bot's Telegram **API key**.
 
 The most popular distros usually ships a very old Golang version in their official repositories, which might not work at all. Make sure to remove any existing Golang installations and install the latest version using [official upstream guide](https://golang.org/doc/install) for your operating system.
 
+3. Install build dependencies
+```
+gcc
+g++
+```
 
-3. Build it
+Examples:
+```bash
+# Ubuntu/Debian
+apt install gcc g++
+
+# Fedora/RHEL
+dnf install gcc g++
+```
+
+4. Build it
 ```
 git clone https://github.com/erkexzcx/bbtmvbot.git
 cd bbtmvbot
 go build -ldflags="-s -w" -o bbtmvbot ./cmd/bbtmvbot/bbtmvbot.go
 ```
 
-4. Create configuration file. Simply copy `config.example.yml` to a new file `config.yml` and edit accordingly.
+5. Create configuration file. Simply copy `config.example.yml` to a new file `config.yml` and edit accordingly.
