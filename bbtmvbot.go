@@ -39,15 +39,15 @@ func Start(c *config.Config, dbPath *string) {
 	}
 	initTelegramHandlers()
 
-	// Setup cronjob
-	location, _ := time.LoadLocation("Europe/Vilnius")
-	s := gocron.NewScheduler(location)
-	s.Every("3m").Do(refreshWebsites) // Retrieve new posts, send to users
-	s.Every("24h").Do(cleanup)        // Cleanup (remove posts that are not seen in the last 30 days)
-
 	go func() {
+		// Wait until Telegram bot fully starts
 		time.Sleep(2 * time.Second)
-		refreshWebsites()
+
+		// Setup cronjob
+		location, _ := time.LoadLocation("Europe/Vilnius")
+		s := gocron.NewScheduler(location)
+		s.Every("3m").Do(refreshWebsites) // Retrieve new posts, send to users
+		s.Every("24h").Do(cleanup)        // Cleanup (remove posts that are not seen in the last 30 days)
 	}()
 
 	// Start telegram bot
