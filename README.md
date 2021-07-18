@@ -49,3 +49,27 @@ go build -ldflags="-s -w" -o bbtmvbot ./cmd/bbtmvbot/bbtmvbot.go
 ```
 
 5. Create configuration file. Simply copy `config.example.yml` to a new file `config.yml` and edit accordingly.
+
+6. Run it
+```
+cd <any_working_dir>
+./bbtmvbot
+```
+
+**Tip**: Run it under SystemD script. :)
+```
+[Unit]
+Description=BBTMVBOT service
+After=network-online.target
+
+[Service]
+User=erikas
+Group=erikas
+WorkingDirectory=/home/erikas/bbtmvbot
+ExecStart=/home/erikas/bbtmvbot/bbtmvbot
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+```
