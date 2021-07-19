@@ -1,6 +1,8 @@
-package main
+package alio
 
 import (
+	"bbtmvbot/database"
+	"bbtmvbot/website"
 	"log"
 	"strconv"
 	"strings"
@@ -8,38 +10,46 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-func parseAlio() {
-	// Download page
-	doc, err := fetchDocument(parseLinkAlio)
+type Alio struct{}
+
+const LINK = "https://www.alio.lt/paieska/?category_id=1393&city_id=228626&search_block=1&search[eq][adresas_1]=228626&order=ad_id"
+
+func (obj *Alio) Retrieve(db *database.Database) []*website.Post {
+	posts := make([]*website.Post, 0)
+
+	res, err := website.GetResponse(LINK)
 	if err != nil {
-		log.Println(err)
-		return
+		return posts
+	}
+	defer res.Body.Close()
+	doc, err := goquery.NewDocumentFromReader(res.Body)
+	if err != nil {
+		return posts
 	}
 
-	// Iterate posts in webpage
 	doc.Find("#main_left_b > #main-content-center > div.result").Each(func(i int, s *goquery.Selection) {
-
-		p := &Post{}
+		p := &website.Post{}
 
 		upstreamID, ok := s.Attr("id")
 		if !ok {
+			log.Println("Post ID is not found in 'alio' website")
 			return
 		}
 		p.Link = "https://www.alio.lt/skelbimai/ID" + strings.ReplaceAll(upstreamID, "lv_ad_id_", "") + ".html" // https://www.alio.lt/skelbimai/ID60331923.html
 
-		// Skip if already in database:
-		if p.InDatabase() {
+		if db.InDatabase(p.Link) {
 			return
 		}
 
-		// Get post's content as Goquery Document:
-		postDoc, err := fetchDocument(p.Link)
+		postRes, err := website.GetResponse(p.Link)
 		if err != nil {
-			log.Println(err)
 			return
 		}
-
-		// ------------------------------------------------------------
+		defer postRes.Body.Close()
+		postDoc, err := goquery.NewDocumentFromReader(postRes.Body)
+		if err != nil {
+			return
+		}
 
 		// Extract phone:
 		tmp := postDoc.Find("#phone_val_value").Text()
@@ -65,7 +75,11 @@ func parseAlio() {
 		if el.Length() != 0 {
 			tmp = el.Find(".a_line_val").Text()
 			tmp = strings.TrimSpace(tmp)
-			p.Floor, _ = strconv.Atoi(tmp)
+			p.Floor, err = strconv.Atoi(tmp)
+			if err != nil {
+				log.Println("failed to extract Floor number from 'alio' post")
+				return
+			}
 		}
 
 		// Extract floor total:
@@ -73,7 +87,11 @@ func parseAlio() {
 		if el.Length() != 0 {
 			tmp = el.Find(".a_line_val").Text()
 			tmp = strings.TrimSpace(tmp)
-			p.FloorTotal, _ = strconv.Atoi(tmp)
+			p.FloorTotal, err = strconv.Atoi(tmp)
+			if err != nil {
+				log.Println("failed to extract FloorTotal number from 'alio' post")
+				return
+			}
 		}
 
 		// Extract area:
@@ -82,7 +100,12 @@ func parseAlio() {
 			tmp = el.Find(".a_line_val").Text()
 			tmp = strings.TrimSpace(tmp)
 			tmp = strings.Split(tmp, " ")[0]
-			p.Area, _ = strconv.Atoi(tmp)
+			tmp = strings.Split(tmp, ".")[0]
+			p.Area, err = strconv.Atoi(tmp)
+			if err != nil {
+				log.Println("failed to extract Area number from 'alio' post")
+				return
+			}
 		}
 
 		// Extract price:
@@ -94,7 +117,11 @@ func parseAlio() {
 			if strings.Contains(tmp, ".") {
 				tmp = strings.Split(tmp, ".")[0]
 			}
-			p.Price, _ = strconv.Atoi(tmp)
+			p.Price, err = strconv.Atoi(tmp)
+			if err != nil {
+				log.Println("failed to extract Price number from 'alio' post")
+				return
+			}
 		}
 
 		// Extract rooms:
@@ -102,7 +129,11 @@ func parseAlio() {
 		if el.Length() != 0 {
 			tmp = el.Find(".a_line_val").Text()
 			tmp = strings.TrimSpace(tmp)
-			p.Rooms, _ = strconv.Atoi(tmp)
+			p.Rooms, err = strconv.Atoi(tmp)
+			if err != nil {
+				log.Println("failed to extract Rooms number from 'alio' post")
+				return
+			}
 		}
 
 		// Extract year:
@@ -111,9 +142,20 @@ func parseAlio() {
 			tmp = el.Find(".a_line_val").Text()
 			tmp = strings.TrimSpace(tmp)
 			tmp = strings.Split(tmp, " ")[0]
-			p.Year, _ = strconv.Atoi(tmp)
+			p.Year, err = strconv.Atoi(tmp)
+			if err != nil {
+				log.Println("failed to extract Year number from 'alio' post")
+				return
+			}
 		}
 
-		go p.Handle()
+		p.TrimFields()
+		posts = append(posts, p)
 	})
+
+	return posts
+}
+
+func init() {
+	website.Add("alio", &Alio{})
 }

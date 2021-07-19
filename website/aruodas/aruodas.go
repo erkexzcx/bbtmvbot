@@ -1,6 +1,8 @@
-package main
+package aruodas
 
 import (
+	"bbtmvbot/database"
+	"bbtmvbot/website"
 	"log"
 	"strconv"
 	"strings"
@@ -8,38 +10,46 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-func parseAruodas() {
-	// Download page
-	doc, err := fetchDocument(parseLinkAruodas)
+type Aruodas struct{}
+
+const LINK = "https://m.aruodas.lt/?obj=4&FRegion=461&FDistrict=1&FOrder=AddDate&from_search=1&detailed_search=1&FShowOnly=FOwnerDbId0%2CFOwnerDbId1&act=search"
+
+func (obj *Aruodas) Retrieve(db *database.Database) []*website.Post {
+	posts := make([]*website.Post, 0)
+
+	res, err := website.GetResponse(LINK)
 	if err != nil {
-		log.Println(err)
-		return
+		return posts
+	}
+	defer res.Body.Close()
+	doc, err := goquery.NewDocumentFromReader(res.Body)
+	if err != nil {
+		return posts
 	}
 
-	// Iterate posts in webpage
 	doc.Find("ul.search-result-list-v2 > li.result-item-v3:not([style='display: none'])").Each(func(i int, s *goquery.Selection) {
-
-		p := &Post{}
+		p := &website.Post{}
 
 		upstreamID, ok := s.Attr("data-id")
 		if !ok {
+			log.Println("Post ID is not found in 'aruodas' website")
 			return
 		}
 		p.Link = "https://m.aruodas.lt/" + strings.ReplaceAll(upstreamID, "loadObject", "") // https://m.aruodas.lt/4-919937
 
-		// Skip if already in database:
-		if p.InDatabase() {
+		if db.InDatabase(p.Link) {
 			return
 		}
 
-		// Get post's content as Goquery Document:
-		postDoc, err := fetchDocument(p.Link)
+		postRes, err := website.GetResponse(p.Link)
 		if err != nil {
-			log.Println(err)
 			return
 		}
-
-		// ------------------------------------------------------------
+		defer postRes.Body.Close()
+		postDoc, err := goquery.NewDocumentFromReader(postRes.Body)
+		if err != nil {
+			return
+		}
 
 		var tmp string
 
@@ -63,7 +73,11 @@ func parseAruodas() {
 		if el.Length() != 0 {
 			tmp = el.Next().Text()
 			tmp = strings.TrimSpace(tmp)
-			p.Floor, _ = strconv.Atoi(tmp)
+			p.Floor, err = strconv.Atoi(tmp)
+			if err != nil {
+				log.Println("failed to extract Floor number from 'aruodas' post")
+				return
+			}
 		}
 
 		// Extract floor total:
@@ -71,7 +85,11 @@ func parseAruodas() {
 		if el.Length() != 0 {
 			tmp = el.Next().Text()
 			tmp = strings.TrimSpace(tmp)
-			p.FloorTotal, _ = strconv.Atoi(tmp)
+			p.FloorTotal, err = strconv.Atoi(tmp)
+			if err != nil {
+				log.Println("failed to extract FloorTotal number from 'aruodas' post")
+				return
+			}
 		}
 
 		// Extract area:
@@ -84,7 +102,11 @@ func parseAruodas() {
 			} else {
 				tmp = strings.Split(tmp, " ")[0]
 			}
-			p.Area, _ = strconv.Atoi(tmp)
+			p.Area, err = strconv.Atoi(tmp)
+			if err != nil {
+				log.Println("failed to extract Area number from 'aruodas' post")
+				return
+			}
 		}
 
 		// Extract price:
@@ -94,7 +116,11 @@ func parseAruodas() {
 			tmp = strings.TrimSpace(tmp)
 			tmp = strings.ReplaceAll(tmp, " ", "")
 			tmp = strings.ReplaceAll(tmp, "€", "")
-			p.Price, _ = strconv.Atoi(tmp)
+			p.Price, err = strconv.Atoi(tmp)
+			if err != nil {
+				log.Println("failed to extract Price number from 'aruodas' post")
+				return
+			}
 		}
 
 		// Extract rooms:
@@ -102,7 +128,11 @@ func parseAruodas() {
 		if el.Length() != 0 {
 			tmp = el.Next().Text()
 			tmp = strings.TrimSpace(tmp)
-			p.Rooms, _ = strconv.Atoi(tmp)
+			p.Rooms, err = strconv.Atoi(tmp)
+			if err != nil {
+				log.Println("failed to extract Rooms number from 'aruodas' post")
+				return
+			}
 		}
 
 		// Extract year:
@@ -113,9 +143,20 @@ func parseAruodas() {
 			if strings.Contains(tmp, " ") {
 				tmp = strings.Split(tmp, " ")[0]
 			}
-			p.Year, _ = strconv.Atoi(tmp)
+			p.Year, err = strconv.Atoi(tmp)
+			if err != nil {
+				log.Println("failed to extract Year number from 'aruodas' post")
+				return
+			}
 		}
 
-		go p.Handle()
+		p.TrimFields()
+		posts = append(posts, p)
 	})
+
+	return posts
+}
+
+func init() {
+	website.Add("aruodas", &Aruodas{})
 }

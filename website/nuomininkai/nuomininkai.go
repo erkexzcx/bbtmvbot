@@ -1,6 +1,8 @@
-package main
+package nuomininkai
 
 import (
+	"bbtmvbot/database"
+	"bbtmvbot/website"
 	"log"
 	"strconv"
 	"strings"
@@ -8,38 +10,46 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-func parseNuomininkai() {
-	// Download page
-	doc, err := fetchDocument(parseLinkNuomininkai)
+type Nuomininkai struct{}
+
+const LINK = "https://nuomininkai.lt/paieska/?propery_type=butu-nuoma&propery_contract_type=&propery_location=461&imic_property_district=&new_quartals=&min_price=&max_price=&min_price_meter=&max_price_meter=&min_area=&max_area=&rooms_from=&rooms_to=&high_from=&high_to=&floor_type=&irengimas=&building_type=&house_year_from=&house_year_to=&zm_skaicius=&lot_size_from=&lot_size_to=&by_date="
+
+func (obj *Nuomininkai) Retrieve(db *database.Database) []*website.Post {
+	posts := make([]*website.Post, 0)
+
+	res, err := website.GetResponse(LINK)
 	if err != nil {
-		log.Println(err)
-		return
+		return posts
+	}
+	defer res.Body.Close()
+	doc, err := goquery.NewDocumentFromReader(res.Body)
+	if err != nil {
+		return posts
 	}
 
-	// Iterate posts in webpage
-	doc.Find("#property_grid_holder > .property_element").Each(func(i int, s *goquery.Selection) {
-
-		p := &Post{}
+	doc.Find("div.property-listing > ul > li.property_element").Each(func(i int, s *goquery.Selection) {
+		p := &website.Post{}
 
 		upstreamID, exists := s.Find("h3 > a").Attr("href")
 		if !exists {
+			log.Println("unable to find 'id' of the post in 'nuomininkai' portal")
 			return
 		}
 		p.Link = upstreamID // https://nuomininkai.lt/skelbimas/vilniaus-m-sav-vilniaus-m-pilaite-i-kanto-al-isnuomojamas-1-kambario-butas-pilaiteje/
 
-		// Skip if already in database:
-		if p.InDatabase() {
+		if db.InDatabase(p.Link) {
 			return
 		}
 
-		// Get post's content as Goquery Document:
-		postDoc, err := fetchDocument(p.Link)
+		postRes, err := website.GetResponse(p.Link)
 		if err != nil {
-			log.Println(err)
 			return
 		}
-
-		// ------------------------------------------------------------
+		defer postRes.Body.Close()
+		postDoc, err := goquery.NewDocumentFromReader(postRes.Body)
+		if err != nil {
+			return
+		}
 
 		var tmp string
 
@@ -59,7 +69,7 @@ func parseNuomininkai() {
 		addrStreet := detailsElement.Find("td.table-details-name:contains(\"Adresas\")").Next().Text()
 		addrState = strings.TrimSpace(addrState)
 		addrStreet = strings.TrimSpace(addrStreet)
-		p.Address = compileAddress(addrState, addrStreet)
+		p.Address = website.CompileAddress(addrState, addrStreet)
 
 		// Extract heating:
 		// Not possible
@@ -68,14 +78,22 @@ func parseNuomininkai() {
 		tmp = detailsElement.Find("td.table-details-name:contains(\"Aukštas\")").Next().Text()
 		if tmp != "" {
 			tmp = strings.TrimSpace(tmp)
-			p.Floor, _ = strconv.Atoi(tmp)
+			p.Floor, err = strconv.Atoi(tmp)
+			if err != nil {
+				log.Println("failed to extract Floor number from 'nuomininkai' post")
+				return
+			}
 		}
 
 		// Extract floor total:
 		tmp = detailsElement.Find("td.table-details-name:contains(\"Aukštų sk.\")").Next().Text()
 		if tmp != "" {
 			tmp = strings.TrimSpace(tmp)
-			p.FloorTotal, _ = strconv.Atoi(tmp)
+			p.FloorTotal, err = strconv.Atoi(tmp)
+			if err != nil {
+				log.Println("failed to extract FloorTotal number from 'nuomininkai' post")
+				return
+			}
 		}
 
 		// Extract area:
@@ -85,7 +103,11 @@ func parseNuomininkai() {
 			if strings.Contains(tmp, ".") {
 				tmp = strings.Split(tmp, ".")[0]
 			}
-			p.Area, _ = strconv.Atoi(tmp)
+			p.Area, err = strconv.Atoi(tmp)
+			if err != nil {
+				log.Println("failed to extract Area number from 'nuomininkai' post")
+				return
+			}
 		}
 
 		// Extract price:
@@ -94,24 +116,42 @@ func parseNuomininkai() {
 			tmp = strings.TrimSpace(tmp)
 			tmp = strings.ReplaceAll(tmp, " ", "")
 			tmp = strings.ReplaceAll(tmp, "€", "")
-			p.Price, _ = strconv.Atoi(tmp)
+			p.Price, err = strconv.Atoi(tmp)
+			if err != nil {
+				log.Println("failed to extract Price number from 'nuomininkai' post")
+				return
+			}
 		}
 
 		// Extract rooms:
 		tmp = detailsElement.Find("td.table-details-name:contains(\"Kambarių skaičius\")").Next().Text()
 		if tmp != "" {
 			tmp = strings.TrimSpace(tmp)
-			p.Rooms, _ = strconv.Atoi(tmp)
+			p.Rooms, err = strconv.Atoi(tmp)
+			if err != nil {
+				log.Println("failed to extract Rooms number from 'nuomininkai' post")
+				return
+			}
 		}
 
 		// Extract year:
 		tmp = detailsElement.Find("td.table-details-name:contains(\"Metai\")").Next().Text()
 		if tmp != "" {
 			tmp = strings.TrimSpace(tmp)
-			p.Year, _ = strconv.Atoi(tmp)
+			p.Year, err = strconv.Atoi(tmp)
+			if err != nil {
+				log.Println("failed to extract Year number from 'nuomininkai' post")
+				return
+			}
 		}
 
-		go p.Handle()
+		p.TrimFields()
+		posts = append(posts, p)
 	})
 
+	return posts
+}
+
+func init() {
+	website.Add("nuomininkai", &Nuomininkai{})
 }

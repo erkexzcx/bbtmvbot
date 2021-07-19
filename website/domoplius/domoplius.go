@@ -1,6 +1,8 @@
-package main
+package domoplius
 
 import (
+	"bbtmvbot/database"
+	"bbtmvbot/website"
 	"log"
 	"regexp"
 	"strconv"
@@ -9,40 +11,48 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-var regexDomopliusExtractFloors = regexp.MustCompile(`(\d+), (\d+) `)
+type Domoplius struct{}
 
-func parseDomoplius() {
-	// Download page
-	doc, err := fetchDocument(parseLinkDomoplius)
+const LINK = "https://m.domoplius.lt/skelbimai/butai?action_type=3&address_1=461&sell_price_from=&sell_price_to=&qt="
+
+var reExtractFloors = regexp.MustCompile(`(\d+), (\d+) `)
+
+func (obj *Domoplius) Retrieve(db *database.Database) []*website.Post {
+	posts := make([]*website.Post, 0)
+
+	res, err := website.GetResponse(LINK)
 	if err != nil {
-		log.Println(err)
-		return
+		return posts
+	}
+	defer res.Body.Close()
+	doc, err := goquery.NewDocumentFromReader(res.Body)
+	if err != nil {
+		return posts
 	}
 
-	// Iterate posts in webpage
-	doc.Find("ul.list > li[id^=\"ann_\"]").Each(func(i int, s *goquery.Selection) {
-
-		p := &Post{}
+	doc.Find("ul.list > li[id^='ann_']").Each(func(i int, s *goquery.Selection) {
+		p := &website.Post{}
 
 		upstreamID, ok := s.Attr("id")
 		if !ok {
+			log.Println("Post ID is not found in 'domoplius' website")
 			return
 		}
 		p.Link = "https://m.domoplius.lt/skelbimai/-" + strings.ReplaceAll(upstreamID, "ann_", "") + ".html" // https://m.domoplius.lt/skelbimai/-5806213.html
 
-		// Skip if already in database:
-		if p.InDatabase() {
+		if db.InDatabase(p.Link) {
 			return
 		}
 
-		// Get post's content as Goquery Document:
-		postDoc, err := fetchDocument(p.Link)
+		postRes, err := website.GetResponse(p.Link)
 		if err != nil {
-			log.Println(err)
 			return
 		}
-
-		// ------------------------------------------------------------
+		defer postRes.Body.Close()
+		postDoc, err := goquery.NewDocumentFromReader(postRes.Body)
+		if err != nil {
+			return
+		}
 
 		// Extract phone:
 		tmp, err := postDoc.Find("#phone_button_4").Html()
@@ -74,11 +84,19 @@ func parseDomoplius() {
 			el = el.Parent()
 			el.Find("span").Remove()
 			tmp = strings.TrimSpace(el.Text())
-			arr := regexDomopliusExtractFloors.FindStringSubmatch(tmp)
+			arr := reExtractFloors.FindStringSubmatch(tmp)
 			p.Floor, _ = strconv.Atoi(tmp) // will be 0 on failure, will be number if success
 			if len(arr) == 3 {
-				p.Floor, _ = strconv.Atoi(arr[1])
-				p.FloorTotal, _ = strconv.Atoi(arr[2])
+				p.Floor, err = strconv.Atoi(arr[1])
+				if err != nil {
+					log.Println("failed to extract Floor number from 'domoplius' post")
+					return
+				}
+				p.FloorTotal, err = strconv.Atoi(arr[2])
+				if err != nil {
+					log.Println("failed to extract FloorTotal number from 'domoplius' post")
+					return
+				}
 			}
 		}
 
@@ -90,7 +108,11 @@ func parseDomoplius() {
 			tmp = el.Text()
 			tmp = strings.TrimSpace(tmp)
 			tmp = strings.Split(tmp, ".")[0]
-			p.Area, _ = strconv.Atoi(tmp)
+			p.Area, err = strconv.Atoi(tmp)
+			if err != nil {
+				log.Println("failed to extract Area number from 'domoplius' post")
+				return
+			}
 		}
 
 		// Extract price:
@@ -99,7 +121,11 @@ func parseDomoplius() {
 			tmp = strings.TrimSpace(tmp)
 			tmp = strings.ReplaceAll(tmp, " ", "")
 			tmp = strings.ReplaceAll(tmp, "€", "")
-			p.Price, _ = strconv.Atoi(tmp)
+			p.Price, err = strconv.Atoi(tmp)
+			if err != nil {
+				log.Println("failed to extract Price number from 'domoplius' post")
+				return
+			}
 		}
 
 		// Extract rooms:
@@ -109,7 +135,11 @@ func parseDomoplius() {
 			el.Find("span").Remove()
 			tmp = el.Text()
 			tmp = strings.TrimSpace(tmp)
-			p.Rooms, _ = strconv.Atoi(tmp)
+			p.Rooms, err = strconv.Atoi(tmp)
+			if err != nil {
+				log.Println("failed to extract Rooms number from 'domoplius' post")
+				return
+			}
 		}
 
 		// Extract year:
@@ -119,29 +149,36 @@ func parseDomoplius() {
 			el.Find("span").Remove()
 			tmp = el.Text()
 			tmp = strings.TrimSpace(tmp)
-			p.Year, _ = strconv.Atoi(tmp)
+			p.Year, err = strconv.Atoi(tmp)
+			if err != nil {
+				log.Println("failed to extract Year number from 'domoplius' post")
+				return
+			}
 		}
 
-		go p.Handle()
+		p.TrimFields()
+		posts = append(posts, p)
 	})
+
+	return posts
 }
 
-var regexDomopliusExtractNumberMap = regexp.MustCompile(`(\w+)='([^']+)'`)
-var regexDomopliusExtractNumberSeq = regexp.MustCompile(`document\.write\(([\w+]+)\);`)
+var reNumberMap = regexp.MustCompile(`(\w+)='([^']+)'`)
+var reNumerSeq = regexp.MustCompile(`document\.write\(([\w+]+)\);`)
 
 func domopliusDecodeNumber(str string) string {
 	// Create map:
-	arr := regexDomopliusExtractNumberMap.FindAllSubmatch([]byte(str), -1)
+	arr := reNumberMap.FindAllStringSubmatch(str, -1)
 	mymap := make(map[string]string, len(arr))
 	for _, v := range arr {
-		mymap[string(v[1])] = string(v[2])
+		mymap[v[1]] = v[2]
 	}
 
 	// Create sequence:
-	arr = regexDomopliusExtractNumberSeq.FindAllSubmatch([]byte(str), -1)
+	arr = reNumerSeq.FindAllStringSubmatch(str, -1)
 	var seq string
 	for _, v := range arr {
-		seq += "+" + string(v[1])
+		seq += "+" + v[1]
 	}
 	seq = strings.TrimLeft(seq, "+")
 
@@ -168,4 +205,8 @@ func domopliusDecodeNumber(str string) string {
 	}
 
 	return msg
+}
+
+func init() {
+	website.Add("domoplius", &Domoplius{})
 }
