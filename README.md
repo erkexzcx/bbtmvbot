@@ -9,6 +9,10 @@ Hardware requirements are so low that you can even run this completelly fine on 
 
 # Usage
 
+Feel free to use my hosted instance in cloud: http://t.me/bbtmvbot
+
+Otherwise see below steps on how to host it yourself.
+
 1. Setup Telegram bot
 
 Using [BotFather](https://t.me/BotFather) create your own Telegram bot.
