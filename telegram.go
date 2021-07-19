@@ -61,9 +61,12 @@ const configErrorText = "Wrong input! " + configText
 func handleCommandConfig(m *telebot.Message) {
 	msg := strings.ToLower(strings.TrimSpace(m.Text))
 
+	// Remove @<botname> from command if exists
+	msg = strings.Split(msg, "@")[0]
+
 	// Check if default
 	if msg == "/config" {
-		sendTelegram(m.Chat.ID, configText)
+		sendTelegram(m.Chat.ID, configText+"\n\n"+activeSettings(m.Chat.ID))
 		return
 	}
 
