@@ -10,7 +10,6 @@ import (
 )
 
 var configPath = flag.String("config", "config.yml", "path to config file")
-var dbPath = flag.String("database", "bbtmvbot.db", "path to database file")
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
@@ -18,8 +17,8 @@ func main() {
 
 	c, err := config.New(*configPath)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalln("Configuration error:", err)
 	}
 
-	bbtmvbot.Start(c, dbPath)
+	bbtmvbot.Start(c)
 }

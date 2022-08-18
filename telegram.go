@@ -9,8 +9,15 @@ import (
 	"sync"
 	"time"
 
-	telebot "gopkg.in/tucnak/telebot.v2"
+	telebot "gopkg.in/telebot.v3"
 )
+
+func TelegramMiddlewareUserInDB(next telebot.HandlerFunc) telebot.HandlerFunc {
+	return func(c telebot.Context) error {
+		db.EnsureUserInDB(c.Chat().ID) // This ensures that user is always in DB
+		return next(c)                 // continue execution chain
+	}
+}
 
 func initTelegramHandlers() {
 	tb.Handle("/start", handleCommandInfo)
@@ -20,36 +27,33 @@ func initTelegramHandlers() {
 	tb.Handle("/config", handleCommandConfig)
 }
 
-func handleCommandInfo(m *telebot.Message) {
-	sendTelegram(m.Chat.ID, "BBTMV - 'Butų Be Tarpininkavimo Mokesčio Vilniuje' is a project intended to help find flats for a rent in Vilnius, Lithuania. All you have to do is to set config using /config command and wait until bot sends you notifications.\n\n**Fun fact** - if you are couple and looking for a flat, then create group chat and add this bot into that group - enable settings and bot will send notifications to the same chat. :)")
+func handleCommandInfo(c telebot.Context) error {
+	return sendTelegram(c.Chat().ID, "BBTMV - 'Butų Be Tarpininkavimo Mokesčio Vilniuje' is a project intended to help find flats for a rent in Vilnius, Lithuania. All you have to do is to set config using /config command and wait until bot sends you notifications.\n\n**Fun fact** - if you are couple and looking for a flat, then create group chat and add this bot into that group - enable settings and bot will send notifications to the same chat. :)")
 }
 
-func handleCommandEnable(m *telebot.Message) {
-	user := db.GetUser(m.Chat.ID)
+func handleCommandEnable(c telebot.Context) error {
+	user := db.GetUser(c.Chat().ID)
 	if user.PriceFrom == 0 && user.PriceTo == 0 && user.RoomsFrom == 0 && user.RoomsTo == 0 && user.YearFrom == 0 {
-		sendTelegram(m.Chat.ID, "You must first use /config command before using /enable or /disable commands!")
-		return
+		return sendTelegram(c.Chat().ID, "You must first use /config command before using /enable or /disable commands!")
 	}
 	if user.Enabled {
-		sendTelegram(m.Chat.ID, "Notifications are already enabled!")
-		return
+		sendTelegram(c.Chat().ID, "Notifications are already enabled!")
+		return nil
 	}
-	db.SetEnabled(m.Chat.ID, true)
-	sendTelegram(m.Chat.ID, "Notifications enabled!")
+	db.SetEnabled(c.Chat().ID, true)
+	return sendTelegram(c.Chat().ID, "Notifications enabled!")
 }
 
-func handleCommandDisable(m *telebot.Message) {
-	user := db.GetUser(m.Chat.ID)
+func handleCommandDisable(c telebot.Context) error {
+	user := db.GetUser(c.Chat().ID)
 	if user.PriceFrom == 0 && user.PriceTo == 0 && user.RoomsFrom == 0 && user.RoomsTo == 0 && user.YearFrom == 0 {
-		sendTelegram(m.Chat.ID, "You must first use `/config` command before using `/enable` or `/disable` commands!")
-		return
+		return sendTelegram(c.Chat().ID, "You must first use `/config` command before using `/enable` or `/disable` commands!")
 	}
 	if !user.Enabled {
-		sendTelegram(m.Chat.ID, "Notifications are already disabled!")
-		return
+		return sendTelegram(c.Chat().ID, "Notifications are already disabled!")
 	}
-	db.SetEnabled(m.Chat.ID, false)
-	sendTelegram(m.Chat.ID, "Notifications disabled!")
+	db.SetEnabled(c.Chat().ID, false)
+	return sendTelegram(c.Chat().ID, "Notifications disabled!")
 }
 
 var reConfigCommand = regexp.MustCompile(`^\/config (\d{1,5}) (\d{1,5}) (\d{1,2}) (\d{1,2}) (\d{4})$`)
@@ -58,21 +62,19 @@ const configText = "Use this format:\n\n```\n/config <price_from> <price_to> <ro
 
 const configErrorText = "Wrong input! " + configText
 
-func handleCommandConfig(m *telebot.Message) {
-	msg := strings.ToLower(strings.TrimSpace(m.Text))
+func handleCommandConfig(c telebot.Context) error {
+	msg := strings.ToLower(strings.TrimSpace(c.Message().Text))
 
 	// Remove @<botname> from command if exists
 	msg = strings.Split(msg, "@")[0]
 
 	// Check if default
 	if msg == "/config" {
-		sendTelegram(m.Chat.ID, configText+"\n\n"+activeSettings(m.Chat.ID))
-		return
+		return sendTelegram(c.Chat().ID, configText+"\n\n"+activeSettings(c.Chat().ID))
 	}
 
 	if !reConfigCommand.MatchString(msg) {
-		sendTelegram(m.Chat.ID, configErrorText)
-		return
+		return sendTelegram(c.Chat().ID, configErrorText)
 	}
 
 	// Extract variables from message (using regex)
@@ -89,12 +91,11 @@ func handleCommandConfig(m *telebot.Message) {
 	yearCorrect := yearFrom <= time.Now().Year()
 
 	if !(priceCorrect && roomsCorrect && yearCorrect) {
-		sendTelegram(m.Chat.ID, configErrorText)
-		return
+		return sendTelegram(c.Chat().ID, configErrorText)
 	}
 
 	user := &database.User{
-		TelegramID: m.Chat.ID,
+		TelegramID: c.Chat().ID,
 		Enabled:    true,
 		PriceFrom:  priceFrom,
 		PriceTo:    priceTo,
@@ -103,7 +104,7 @@ func handleCommandConfig(m *telebot.Message) {
 		YearFrom:   yearFrom,
 	}
 	db.UpdateUser(user)
-	sendTelegram(m.Chat.ID, "Config updated!\n\n"+activeSettings(m.Chat.ID))
+	return sendTelegram(c.Chat().ID, "Config updated!\n\n"+activeSettings(c.Chat().ID))
 }
 
 const userSettingsTemplate = `*Your active settings:*
@@ -135,17 +136,21 @@ func activeSettings(telegramID int64) string {
 var telegramMux sync.Mutex
 var elapsedTime time.Duration
 
-func sendTelegram(chatID int64, msg string) {
+func sendTelegram(chatID int64, msg string) error {
 	telegramMux.Lock()
 	defer telegramMux.Unlock()
 
 	startTime := time.Now()
-	tb.Send(&telebot.Chat{ID: chatID}, msg, &telebot.SendOptions{
+	_, err := tb.Send(&telebot.Chat{ID: chatID}, msg, &telebot.SendOptions{
 		ParseMode:             "Markdown",
 		DisableWebPagePreview: true,
 	})
+	if err != nil {
+		return err
+	}
 	elapsedTime = time.Since(startTime)
 
 	// See https://core.telegram.org/bots/faq#my-bot-is-hitting-limits-how-do-i-avoid-this
 	time.Sleep(30*time.Millisecond - elapsedTime)
+	return nil
 }

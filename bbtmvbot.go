@@ -5,10 +5,11 @@ import (
 	"bbtmvbot/database"
 	"bbtmvbot/website"
 	"log"
+	"path"
 	"time"
 
 	"github.com/go-co-op/gocron"
-	telebot "gopkg.in/tucnak/telebot.v2"
+	telebot "gopkg.in/telebot.v3"
 )
 
 var (
@@ -16,39 +17,34 @@ var (
 	tb *telebot.Bot
 )
 
-func Start(c *config.Config, dbPath *string) {
+func Start(c *config.Config) {
 	// Open DB
 	var err error
-	db, err = database.Open(*dbPath)
+	db, err = database.Open(path.Join(c.DataDir, "database.db"))
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	// Connect to Telegram
-	poller := &telebot.LongPoller{Timeout: 10 * time.Second}
-	middlewarePoller := telebot.NewMiddlewarePoller(poller, func(upd *telebot.Update) bool {
-		if upd.Message == nil {
-			return false
-		}
-		db.EnsureUserInDB(upd.Message.Chat.ID) // This ensures that user is always in DB
-		return true
-	})
-	tb, err = telebot.NewBot(telebot.Settings{Token: c.Telegram.ApiKey, Poller: middlewarePoller})
+	// Init Telegram bot
+	pref := telebot.Settings{
+		Token:  c.TelegramApiKey,
+		Poller: &telebot.LongPoller{Timeout: 10 * time.Second},
+	}
+	tb, err = telebot.NewBot(pref)
 	if err != nil {
 		log.Fatalln(err)
 	}
+	tb.Use(TelegramMiddlewareUserInDB)
 	initTelegramHandlers()
-
-	// Start telegram bot
 	go tb.Start()
 
-	// Setup cronjob
+	// Init cron
 	location, _ := time.LoadLocation("Europe/Vilnius")
 	s := gocron.NewScheduler(location)
 	s.Every("3m").Do(refreshWebsites) // Retrieve new posts, send to users
 	s.Every("24h").Do(cleanup)        // Cleanup (remove posts that are not seen in the last 30 days)
 
-	// Start cronjob and block execution
+	// Start cron and block execution
 	s.StartBlocking()
 }
 
