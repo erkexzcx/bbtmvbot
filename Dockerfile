@@ -11,6 +11,6 @@ ARG version
 RUN CGO_ENABLED=1 GOOS=$TARGETOS GOARCH=$TARGETARCH GOARM=${TARGETVARIANT#v} go build -a -ldflags "-w -s -X main.version=$version" -o bbtmvbot ./cmd/bbtmvbot/main.go
 
 FROM alpine:3.19
-RUN apk add --no-cache ca-certificates gcompat
+RUN apk add --no-cache ca-certificates gcompat tzdata
 COPY --from=builder /app/bbtmvbot /bbtmvbot
 ENTRYPOINT ["/bbtmvbot"]
