@@ -6,6 +6,7 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -15,8 +16,29 @@ type Nuomininkai struct{}
 const LINK = "https://nuomininkai.lt/paieska/?propery_type=butu-nuoma&propery_contract_type=&propery_location=461&imic_property_district=&new_quartals=&min_price=&max_price=&min_price_meter=&max_price_meter=&min_area=&max_area=&rooms_from=&rooms_to=&high_from=&high_to=&floor_type=&irengimas=&building_type=&house_year_from=&house_year_to=&zm_skaicius=&lot_size_from=&lot_size_to=&by_date="
 const WEBSITE = "nuomininkai.lt"
 
+var inProgress = false
+var inProgressMux = sync.Mutex{}
+
 func (obj *Nuomininkai) Retrieve(db *database.Database) []*website.Post {
 	posts := make([]*website.Post, 0)
+
+	// If in progress - simply skip current iteration
+	inProgressMux.Lock()
+	if inProgress {
+		defer inProgressMux.Unlock()
+		return posts
+	}
+
+	// Mark in progress
+	inProgress = true
+	inProgressMux.Unlock()
+
+	// Mark not in progress after function ends
+	defer func() {
+		inProgressMux.Lock()
+		inProgress = false
+		inProgressMux.Unlock()
+	}()
 
 	res, err := website.GetResponse(LINK, WEBSITE)
 	if err != nil {

@@ -6,6 +6,7 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -15,8 +16,29 @@ type Aruodas struct{}
 const LINK = "https://m.aruodas.lt/?obj=4&FRegion=461&FDistrict=1&FOrder=AddDate&from_search=1&detailed_search=1&FShowOnly=FOwnerDbId0%2CFOwnerDbId1&act=search"
 const WEBSITE = "aruodas.lt"
 
+var inProgress = false
+var inProgressMux = sync.Mutex{}
+
 func (obj *Aruodas) Retrieve(db *database.Database) []*website.Post {
 	posts := make([]*website.Post, 0)
+
+	// If in progress - simply skip current iteration
+	inProgressMux.Lock()
+	if inProgress {
+		defer inProgressMux.Unlock()
+		return posts
+	}
+
+	// Mark in progress
+	inProgress = true
+	inProgressMux.Unlock()
+
+	// Mark not in progress after function ends
+	defer func() {
+		inProgressMux.Lock()
+		inProgress = false
+		inProgressMux.Unlock()
+	}()
 
 	res, err := website.GetResponse(LINK, WEBSITE)
 	if err != nil {

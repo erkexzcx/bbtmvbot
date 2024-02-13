@@ -6,6 +6,7 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -15,8 +16,29 @@ type Alio struct{}
 const LINK = "https://www.alio.lt/paieska/?category_id=1393&city_id=228626&search_block=1&search[eq][adresas_1]=228626&order=ad_id"
 const WEBSITE = "alio.lt"
 
+var inProgress = false
+var inProgressMux = sync.Mutex{}
+
 func (obj *Alio) Retrieve(db *database.Database) []*website.Post {
 	posts := make([]*website.Post, 0)
+
+	// If in progress - simply skip current iteration
+	inProgressMux.Lock()
+	if inProgress {
+		defer inProgressMux.Unlock()
+		return posts
+	}
+
+	// Mark in progress
+	inProgress = true
+	inProgressMux.Unlock()
+
+	// Mark not in progress after function ends
+	defer func() {
+		inProgressMux.Lock()
+		inProgress = false
+		inProgressMux.Unlock()
+	}()
 
 	res, err := website.GetResponse(LINK, WEBSITE)
 	if err != nil {

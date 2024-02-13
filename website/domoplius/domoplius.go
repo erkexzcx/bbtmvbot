@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -16,10 +17,31 @@ type Domoplius struct{}
 const LINK = "https://m.domoplius.lt/skelbimai/butai?action_type=3&address_1=461&sell_price_from=&sell_price_to=&qt="
 const WEBSITE = "domoplius.lt"
 
+var inProgress = false
+var inProgressMux = sync.Mutex{}
+
 var reExtractFloors = regexp.MustCompile(`(\d+), (\d+) `)
 
 func (obj *Domoplius) Retrieve(db *database.Database) []*website.Post {
 	posts := make([]*website.Post, 0)
+
+	// If in progress - simply skip current iteration
+	inProgressMux.Lock()
+	if inProgress {
+		defer inProgressMux.Unlock()
+		return posts
+	}
+
+	// Mark in progress
+	inProgress = true
+	inProgressMux.Unlock()
+
+	// Mark not in progress after function ends
+	defer func() {
+		inProgressMux.Lock()
+		inProgress = false
+		inProgressMux.Unlock()
+	}()
 
 	res, err := website.GetResponse(LINK, WEBSITE)
 	if err != nil {

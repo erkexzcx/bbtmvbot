@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"strings"
+	"sync"
 )
 
 type Kampas struct{}
@@ -29,8 +30,29 @@ type kampasPosts struct {
 const LINK = "https://www.kampas.lt/api/classifieds/search-new?query={%22municipality%22%3A%2258%22%2C%22settlement%22%3A19220%2C%22page%22%3A1%2C%22sort%22%3A%22new%22%2C%22section%22%3A%22bustas-nuomai%22%2C%22type%22%3A%22flat%22}"
 const WEBSITE = "kampas.lt"
 
+var inProgress = false
+var inProgressMux = sync.Mutex{}
+
 func (obj *Kampas) Retrieve(db *database.Database) []*website.Post {
 	posts := make([]*website.Post, 0)
+
+	// If in progress - simply skip current iteration
+	inProgressMux.Lock()
+	if inProgress {
+		defer inProgressMux.Unlock()
+		return posts
+	}
+
+	// Mark in progress
+	inProgress = true
+	inProgressMux.Unlock()
+
+	// Mark not in progress after function ends
+	defer func() {
+		inProgressMux.Lock()
+		inProgress = false
+		inProgressMux.Unlock()
+	}()
 
 	res, err := website.GetResponse(LINK, WEBSITE)
 	if err != nil {
