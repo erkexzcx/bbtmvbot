@@ -7,8 +7,3 @@ telegram_api_key: 1234567890:6xYrZZ2s_jrki5qgr8OxVBS566z2ZGF4Co7
 # Prometheus metrics settings
 #metrics:
 #  bind: 0.0.0.0:3949
-
-# Parsing settings
-#parsing:
-#  interval: 3m
-#  user_agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.5112.81 Safari/537.36
