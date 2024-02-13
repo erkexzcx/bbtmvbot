@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -16,10 +17,15 @@ var netClient = &http.Client{
 // Ensure websites are not accessed to frequently, otherwise some of them
 // might block the IP/something...
 var websiteLAT = make(map[string]time.Time, 0) // Last Access Time
+var websiteLATMux = sync.Mutex{}
+
 const waitTime = 30 * time.Second
 
 func GetResponse(link string, website string) (*http.Response, error) {
+	websiteLATMux.Lock()
 	lat := websiteLAT[website]
+	websiteLATMux.Unlock()
+
 	if !lat.IsZero() {
 		sleepTime := waitTime - time.Since(lat)
 		if sleepTime > 0 {
@@ -27,7 +33,10 @@ func GetResponse(link string, website string) (*http.Response, error) {
 			time.Sleep(sleepTime)
 		}
 	}
+
+	websiteLATMux.Lock()
 	websiteLAT[website] = time.Now()
+	websiteLATMux.Unlock()
 
 	req, err := http.NewRequest("GET", link, nil)
 	if err != nil {
