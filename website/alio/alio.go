@@ -13,11 +13,12 @@ import (
 type Alio struct{}
 
 const LINK = "https://www.alio.lt/paieska/?category_id=1393&city_id=228626&search_block=1&search[eq][adresas_1]=228626&order=ad_id"
+const WEBSITE = "alio.lt"
 
 func (obj *Alio) Retrieve(db *database.Database) []*website.Post {
 	posts := make([]*website.Post, 0)
 
-	res, err := website.GetResponse(LINK)
+	res, err := website.GetResponse(LINK, WEBSITE)
 	if err != nil {
 		return posts
 	}
@@ -41,7 +42,7 @@ func (obj *Alio) Retrieve(db *database.Database) []*website.Post {
 			return
 		}
 
-		postRes, err := website.GetResponse(p.Link)
+		postRes, err := website.GetResponse(p.Link, WEBSITE)
 		if err != nil {
 			return
 		}

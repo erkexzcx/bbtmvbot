@@ -13,11 +13,12 @@ import (
 type Aruodas struct{}
 
 const LINK = "https://m.aruodas.lt/?obj=4&FRegion=461&FDistrict=1&FOrder=AddDate&from_search=1&detailed_search=1&FShowOnly=FOwnerDbId0%2CFOwnerDbId1&act=search"
+const WEBSITE = "aruodas.lt"
 
 func (obj *Aruodas) Retrieve(db *database.Database) []*website.Post {
 	posts := make([]*website.Post, 0)
 
-	res, err := website.GetResponse(LINK)
+	res, err := website.GetResponse(LINK, WEBSITE)
 	if err != nil {
 		return posts
 	}
@@ -41,7 +42,7 @@ func (obj *Aruodas) Retrieve(db *database.Database) []*website.Post {
 			return
 		}
 
-		postRes, err := website.GetResponse(p.Link)
+		postRes, err := website.GetResponse(p.Link, WEBSITE)
 		if err != nil {
 			return
 		}

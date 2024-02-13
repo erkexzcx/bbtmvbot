@@ -13,11 +13,12 @@ import (
 type Skelbiu struct{}
 
 const LINK = "https://www.skelbiu.lt/skelbimai/?cities=465&category_id=322&cities=465&district=0&cost_min=&cost_max=&status=0&space_min=&space_max=&rooms_min=&rooms_max=&building=0&year_min=&year_max=&floor_min=&floor_max=&floor_type=0&user_type=0&type=1&orderBy=1&import=2&keywords="
+const WEBSITE = "skelbiu.lt"
 
 func (obj *Skelbiu) Retrieve(db *database.Database) []*website.Post {
 	posts := make([]*website.Post, 0)
 
-	res, err := website.GetResponse(LINK)
+	res, err := website.GetResponse(LINK, WEBSITE)
 	if err != nil {
 		return posts
 	}
@@ -40,7 +41,7 @@ func (obj *Skelbiu) Retrieve(db *database.Database) []*website.Post {
 			return
 		}
 
-		postRes, err := website.GetResponse(p.Link)
+		postRes, err := website.GetResponse(p.Link, WEBSITE)
 		if err != nil {
 			return
 		}

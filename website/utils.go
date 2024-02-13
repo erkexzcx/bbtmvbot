@@ -2,6 +2,7 @@ package website
 
 import (
 	"errors"
+	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -12,7 +13,22 @@ var netClient = &http.Client{
 	Timeout: time.Second * 10,
 }
 
-func GetResponse(link string) (*http.Response, error) {
+// Ensure websites are not accessed to frequently, otherwise some of them
+// might block the IP/something...
+var websiteLAT = make(map[string]time.Time, 0) // Last Access Time
+const waitTime = 30 * time.Second
+
+func GetResponse(link string, website string) (*http.Response, error) {
+	lat := websiteLAT[website]
+	if !lat.IsZero() {
+		sleepTime := waitTime - time.Since(lat)
+		if sleepTime > 0 {
+			log.Printf("%s sleeping for %s...\n", website, sleepTime.String())
+			time.Sleep(sleepTime)
+		}
+	}
+	websiteLAT[website] = time.Now()
+
 	req, err := http.NewRequest("GET", link, nil)
 	if err != nil {
 		return nil, err
@@ -24,7 +40,7 @@ func GetResponse(link string) (*http.Response, error) {
 	}
 
 	req.Header.Set("Host", myURL.Host)
-	req.Header.Set("User-Agent", "Mozilla/5.0 (X11; Fedora; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.164 Safari/537.36")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) FxQuantum/122.0 AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36")
 	req.Header.Set("Accept", "*/*")
 
 	resp, err := netClient.Do(req)
@@ -48,7 +64,7 @@ func GetResponse(link string) (*http.Response, error) {
 			return nil, errors.New("unable to parse HTTP header \"Location\" of link " + link + " after redirection")
 		}
 		newLink := linkURL.ResolveReference(redirectURL)
-		return GetResponse(newLink.String())
+		return GetResponse(newLink.String(), website)
 	}
 
 	return nil, errors.New(link + " returned HTTP code " + strconv.Itoa(resp.StatusCode))

@@ -14,13 +14,14 @@ import (
 type Rinka struct{}
 
 const LINK = "https://www.rinka.lt/nekilnojamojo-turto-skelbimai/butu-nuoma?filter%5BKainaForAll%5D%5Bmin%5D=&filter%5BKainaForAll%5D%5Bmax%5D=&filter%5BNTnuomakambariuskaiciusButai%5D%5Bmin%5D=&filter%5BNTnuomakambariuskaiciusButai%5D%5Bmax%5D=&filter%5BNTnuomabendrasplotas%5D%5Bmin%5D=&filter%5BNTnuomabendrasplotas%5D%5Bmax%5D=&filter%5BNTnuomastatybosmetai%5D%5Bmin%5D=&filter%5BNTnuomastatybosmetai%5D%5Bmax%5D=&filter%5BNTnuomaaukstuskaicius%5D%5Bmin%5D=&filter%5BNTnuomaaukstuskaicius%5D%5Bmax%5D=&filter%5BNTnuomaaukstas%5D%5Bmin%5D=&filter%5BNTnuomaaukstas%5D%5Bmax%5D=&cities%5B0%5D=2&cities%5B1%5D=3"
+const WEBSITE = "rinka.lt"
 
 var rePrice = regexp.MustCompile(`Kaina: ([\d,]+),\d+ €`)
 
 func (obj *Rinka) Retrieve(db *database.Database) []*website.Post {
 	posts := make([]*website.Post, 0)
 
-	res, err := website.GetResponse(LINK)
+	res, err := website.GetResponse(LINK, WEBSITE)
 	if err != nil {
 		return posts
 	}
@@ -43,7 +44,7 @@ func (obj *Rinka) Retrieve(db *database.Database) []*website.Post {
 			return
 		}
 
-		postRes, err := website.GetResponse(p.Link)
+		postRes, err := website.GetResponse(p.Link, WEBSITE)
 		if err != nil {
 			return
 		}
