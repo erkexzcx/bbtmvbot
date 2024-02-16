@@ -2,6 +2,8 @@ package website
 
 import (
 	"bbtmvbot/database"
+
+	"github.com/playwright-community/playwright-go"
 )
 
 type Website interface {
@@ -13,3 +15,5 @@ var Websites = map[string]Website{}
 func Add(name string, w Website) {
 	Websites[name] = w
 }
+
+var PlaywrightContext playwright.BrowserContext

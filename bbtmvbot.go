@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/go-co-op/gocron"
+	"github.com/playwright-community/playwright-go"
 	telebot "gopkg.in/telebot.v3"
 )
 
@@ -38,11 +39,36 @@ func Start(c *config.Config) {
 	initTelegramHandlers()
 	go tb.Start()
 
+	// Init playwright
+	launchOpts := playwright.BrowserTypeLaunchOptions{
+		ExecutablePath: playwright.String("/usr/bin/chromium"),
+		Headless:       playwright.Bool(false),
+	}
+	pw, err := playwright.Run()
+	if err != nil {
+		log.Fatalf("could not start playwright: %v", err)
+	}
+	browser, err := pw.Chromium.Launch(launchOpts)
+	if err != nil {
+		log.Fatalf("could not launch browser: %v", err)
+	}
+	context, _ := browser.NewContext(playwright.BrowserNewContextOptions{
+		UserAgent: playwright.String(c.UserAgent),
+	})
+	// Make it available globally
+	website.PlaywrightContext = context
+
+	// Open and keep single blank page, so it's not closing
+	_, err = context.NewPage()
+	if err != nil {
+		log.Fatalf("could not create page: %v", err)
+	}
+
 	// Init cron
 	location, _ := time.LoadLocation("Europe/Vilnius")
 	s := gocron.NewScheduler(location)
-	s.Every("3m").Do(refreshWebsites) // Retrieve new posts, send to users
-	s.Every("24h").Do(cleanup)        // Cleanup (remove posts that are not seen in the last 30 days)
+	s.Every("10m").Do(refreshWebsites) // Retrieve new posts, send to users
+	s.Every("24h").Do(cleanup)         // Cleanup (remove posts that are not seen in the last 30 days)
 
 	// Start cron and block execution
 	s.StartBlocking()

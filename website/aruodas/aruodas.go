@@ -4,11 +4,8 @@ import (
 	"bbtmvbot/database"
 	"bbtmvbot/website"
 	"log"
-	"strconv"
 	"strings"
 	"sync"
-
-	"github.com/PuerkitoBio/goquery"
 )
 
 type Aruodas struct{}
@@ -20,6 +17,8 @@ var inProgress = false
 var inProgressMux = sync.Mutex{}
 
 func (obj *Aruodas) Retrieve(db *database.Database) []*website.Post {
+	log.Println("Retrieving posts from 'aruodas' website...")
+
 	posts := make([]*website.Post, 0)
 
 	// If in progress - simply skip current iteration
@@ -40,142 +39,154 @@ func (obj *Aruodas) Retrieve(db *database.Database) []*website.Post {
 		inProgressMux.Unlock()
 	}()
 
-	res, err := website.GetResponse(LINK, WEBSITE)
+	// Open new playwright page
+	page, err := website.PlaywrightContext.NewPage()
 	if err != nil {
-		return posts
-	}
-	defer res.Body.Close()
-	doc, err := goquery.NewDocumentFromReader(res.Body)
-	if err != nil {
+		log.Printf("could not create %s page: %v", WEBSITE, err)
 		return posts
 	}
 
-	doc.Find("ul.search-result-list-v2 > li.result-item-v3:not([style='display: none'])").Each(func(i int, s *goquery.Selection) {
+	// Ensure page is closed after function ends
+	defer func() {
+		err = page.Close()
+		if err != nil {
+			log.Printf("could not close %s page: %v", WEBSITE, err)
+		}
+	}()
+
+	// Go to url that contains list of posts
+	if _, err = page.Goto(LINK); err != nil {
+		log.Printf("could not goto %s: %v", WEBSITE, err)
+		return posts
+	}
+
+	entries, _ := page.Locator("ul.search-result-list-big_thumbs > li.result-item-big-thumb:not([style='display: none'])").All()
+	//fmt.Println(entries)
+	for _, entry := range entries {
 		p := &website.Post{}
 
-		upstreamID, ok := s.Attr("data-id")
-		if !ok {
+		// Get post ID
+		upstreamID, err := entry.GetAttribute("data-id")
+		if err != nil {
 			log.Println("Post ID is not found in 'aruodas' website")
-			return
+			continue
 		}
-		p.Link = "https://m.aruodas.lt/" + strings.ReplaceAll(upstreamID, "loadObject", "") // https://m.aruodas.lt/4-919937
+		p.Link = "https://m.aruodas.lt/" + strings.ReplaceAll(upstreamID, "loadobject", "") // https://m.aruodas.lt/4-919937
 
+		//log.Println(p.Link)
+
+		// If post is already in database - skip it
 		if db.InDatabase(p.Link) {
-			return
+			continue
 		}
 
-		postRes, err := website.GetResponse(p.Link, WEBSITE)
-		if err != nil {
-			return
-		}
-		defer postRes.Body.Close()
-		postDoc, err := goquery.NewDocumentFromReader(postRes.Body)
-		if err != nil {
-			return
+		// Go to post url
+		if _, err = page.Goto(p.Link); err != nil {
+			log.Printf("could not goto %s: %v", p.Link, err)
+			return posts
 		}
 
-		var tmp string
+		// var tmp string
 
-		// Extract phone:
-		p.Phone = postDoc.Find("a[data-id=\"subtitlePhone1\"][data-type=\"phone\"]").First().Text()
+		p.Phone, _ = page.Locator("a[data-id=\"subtitlePhone1\"][data-type=\"phone\"]").First().TextContent()
 
-		// Extract description:
-		p.Description = postDoc.Find("#advertInfoContainer > #collapsedTextBlock > #collapsedText").Text()
+		p.Description, _ = page.Locator("#advertInfoContainer > #collapsedTextBlock > #collapsedText").First().TextContent()
 
-		// Extract address:
-		p.Address = postDoc.Find(".show-advert-container > .advert-info-header > h1").Text()
+		p.Address, _ = page.Locator(".show-advert-container > .advert-info-header > h1").First().TextContent()
 
-		// Extract heating:
-		el := postDoc.Find("dt:contains(\"Šildymas\")")
-		if el.Length() != 0 {
-			p.Heating = el.Next().Text()
-		}
+		p.Heating = page.Locator("dt:contains(\"Šildymas\")").First().TextContent()
 
-		// Extract floor:
-		el = postDoc.Find("dt:contains(\"Aukštas\")")
-		if el.Length() != 0 {
-			tmp = el.Next().Text()
-			tmp = strings.TrimSpace(tmp)
-			p.Floor, err = strconv.Atoi(tmp)
-			if err != nil {
-				log.Println("failed to extract Floor number from 'aruodas' post")
-				return
-			}
-		}
+		// // Extract heating:
+		// el := postDoc.Find("dt:contains(\"Šildymas\")")
+		// if el.Length() != 0 {
+		// 	p.Heating = el.Next().Text()
+		// }
 
-		// Extract floor total:
-		el = postDoc.Find("dt:contains(\"Aukštų sk.\")")
-		if el.Length() != 0 {
-			tmp = el.Next().Text()
-			tmp = strings.TrimSpace(tmp)
-			p.FloorTotal, err = strconv.Atoi(tmp)
-			if err != nil {
-				log.Println("failed to extract FloorTotal number from 'aruodas' post")
-				return
-			}
-		}
+		// // Extract floor:
+		// el = postDoc.Find("dt:contains(\"Aukštas\")")
+		// if el.Length() != 0 {
+		// 	tmp = el.Next().Text()
+		// 	tmp = strings.TrimSpace(tmp)
+		// 	p.Floor, err = strconv.Atoi(tmp)
+		// 	if err != nil {
+		// 		log.Println("failed to extract Floor number from 'aruodas' post")
+		// 		return
+		// 	}
+		// }
 
-		// Extract area:
-		el = postDoc.Find("dt:contains(\"Plotas\")")
-		if el.Length() != 0 {
-			tmp = el.Next().Text()
-			tmp = strings.TrimSpace(tmp)
-			if strings.Contains(tmp, ",") {
-				tmp = strings.Split(tmp, ",")[0]
-			} else {
-				tmp = strings.Split(tmp, " ")[0]
-			}
-			p.Area, err = strconv.Atoi(tmp)
-			if err != nil {
-				log.Println("failed to extract Area number from 'aruodas' post")
-				return
-			}
-		}
+		// // Extract floor total:
+		// el = postDoc.Find("dt:contains(\"Aukštų sk.\")")
+		// if el.Length() != 0 {
+		// 	tmp = el.Next().Text()
+		// 	tmp = strings.TrimSpace(tmp)
+		// 	p.FloorTotal, err = strconv.Atoi(tmp)
+		// 	if err != nil {
+		// 		log.Println("failed to extract FloorTotal number from 'aruodas' post")
+		// 		return
+		// 	}
+		// }
 
-		// Extract price:
-		el = postDoc.Find("dt:contains(\"Kaina mėn.\")")
-		if el.Length() != 0 {
-			tmp = el.Next().Text()
-			tmp = strings.TrimSpace(tmp)
-			tmp = strings.ReplaceAll(tmp, " ", "")
-			tmp = strings.ReplaceAll(tmp, "€", "")
-			p.Price, err = strconv.Atoi(tmp)
-			if err != nil {
-				log.Println("failed to extract Price number from 'aruodas' post")
-				return
-			}
-		}
+		// // Extract area:
+		// el = postDoc.Find("dt:contains(\"Plotas\")")
+		// if el.Length() != 0 {
+		// 	tmp = el.Next().Text()
+		// 	tmp = strings.TrimSpace(tmp)
+		// 	if strings.Contains(tmp, ",") {
+		// 		tmp = strings.Split(tmp, ",")[0]
+		// 	} else {
+		// 		tmp = strings.Split(tmp, " ")[0]
+		// 	}
+		// 	p.Area, err = strconv.Atoi(tmp)
+		// 	if err != nil {
+		// 		log.Println("failed to extract Area number from 'aruodas' post")
+		// 		return
+		// 	}
+		// }
 
-		// Extract rooms:
-		el = postDoc.Find("dt:contains(\"Kambarių sk.\")")
-		if el.Length() != 0 {
-			tmp = el.Next().Text()
-			tmp = strings.TrimSpace(tmp)
-			p.Rooms, err = strconv.Atoi(tmp)
-			if err != nil {
-				log.Println("failed to extract Rooms number from 'aruodas' post")
-				return
-			}
-		}
+		// // Extract price:
+		// el = postDoc.Find("dt:contains(\"Kaina mėn.\")")
+		// if el.Length() != 0 {
+		// 	tmp = el.Next().Text()
+		// 	tmp = strings.TrimSpace(tmp)
+		// 	tmp = strings.ReplaceAll(tmp, " ", "")
+		// 	tmp = strings.ReplaceAll(tmp, "€", "")
+		// 	p.Price, err = strconv.Atoi(tmp)
+		// 	if err != nil {
+		// 		log.Println("failed to extract Price number from 'aruodas' post")
+		// 		return
+		// 	}
+		// }
 
-		// Extract year:
-		el = postDoc.Find("dt:contains(\"Metai\")")
-		if el.Length() != 0 {
-			tmp = el.Next().Text()
-			tmp = strings.TrimSpace(tmp)
-			if strings.Contains(tmp, " ") {
-				tmp = strings.Split(tmp, " ")[0]
-			}
-			p.Year, err = strconv.Atoi(tmp)
-			if err != nil {
-				log.Println("failed to extract Year number from 'aruodas' post")
-				return
-			}
-		}
+		// // Extract rooms:
+		// el = postDoc.Find("dt:contains(\"Kambarių sk.\")")
+		// if el.Length() != 0 {
+		// 	tmp = el.Next().Text()
+		// 	tmp = strings.TrimSpace(tmp)
+		// 	p.Rooms, err = strconv.Atoi(tmp)
+		// 	if err != nil {
+		// 		log.Println("failed to extract Rooms number from 'aruodas' post")
+		// 		return
+		// 	}
+		// }
+
+		// // Extract year:
+		// el = postDoc.Find("dt:contains(\"Metai\")")
+		// if el.Length() != 0 {
+		// 	tmp = el.Next().Text()
+		// 	tmp = strings.TrimSpace(tmp)
+		// 	if strings.Contains(tmp, " ") {
+		// 		tmp = strings.Split(tmp, " ")[0]
+		// 	}
+		// 	p.Year, err = strconv.Atoi(tmp)
+		// 	if err != nil {
+		// 		log.Println("failed to extract Year number from 'aruodas' post")
+		// 		return
+		// 	}
+		// }
 
 		p.TrimFields()
 		posts = append(posts, p)
-	})
+	}
 
 	return posts
 }

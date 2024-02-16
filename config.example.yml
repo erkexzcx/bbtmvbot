@@ -1,8 +1,11 @@
+# Data dir:
+#data_dir: data
+
 # Telegram API key:
 telegram_api_key: 1234567890:6xYrZZ2s_jrki5qgr8OxVBS566z2ZGF4Co7
 
-# Data dir:
-#data_dir: data
+# User agent (prefer Windows desktop browser)
+user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36
 
 # Prometheus metrics settings
 #metrics:

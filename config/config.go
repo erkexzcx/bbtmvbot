@@ -12,6 +12,7 @@ import (
 type Config struct {
 	TelegramApiKey string `yaml:"telegram_api_key"`
 	DataDir        string `yaml:"data_dir"`
+	UserAgent      string `yaml:"user_agent"`
 	Metrics        struct {
 		Bind string `yaml:"bind"`
 	} `yaml:"metrics"`
