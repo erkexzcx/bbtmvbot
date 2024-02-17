@@ -49,9 +49,6 @@ func New(path string) (*Config, error) {
 	if len(c.TelegramApiKey) == 0 {
 		return nil, errors.New("missing telegram_api_key")
 	}
-	if _, err = os.Stat(c.DataDir); os.IsNotExist(err) {
-		return nil, errors.New("missing or invalid data_dir")
-	}
 	if _, _, err := net.SplitHostPort(c.Metrics.Bind); err != nil {
 		return nil, errors.New("missing or invalid metrics_bind")
 	}

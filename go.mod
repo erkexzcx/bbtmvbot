@@ -24,5 +24,6 @@ require (
 	github.com/playwright-community/playwright-go v0.4101.1
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
+	go.uber.org/zap v1.26.0
 	golang.org/x/net v0.21.0 // indirect
 )

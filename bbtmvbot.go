@@ -3,8 +3,10 @@ package bbtmvbot
 import (
 	"bbtmvbot/config"
 	"bbtmvbot/database"
+	"bbtmvbot/logger"
 	"bbtmvbot/website"
 	"log"
+	"os"
 	"path"
 	"sync"
 	"time"
@@ -19,11 +21,18 @@ var (
 )
 
 func Start(c *config.Config) {
+	// Init logger
+	f, err := os.OpenFile(path.Join(c.DataDir, "bbtmvbot.log"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatalln("Could not open log file:", err)
+	}
+	defer f.Close()
+	logger.InitLogger(f)
+
 	// Open DB
-	var err error
 	db, err = database.Open(path.Join(c.DataDir, "database.db"))
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalln("Could not open database:", err)
 	}
 
 	// Init Telegram bot
@@ -33,7 +42,7 @@ func Start(c *config.Config) {
 	}
 	tb, err = telebot.NewBot(pref)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalln("Could not create Telegram bot:", err)
 	}
 	tb.Use(TelegramMiddlewareUserInDB)
 	initTelegramHandlers()
@@ -46,11 +55,11 @@ func Start(c *config.Config) {
 	}
 	pw, err := playwright.Run()
 	if err != nil {
-		log.Fatalf("could not start playwright: %v", err)
+		log.Fatalf("could not start playwright: %v\n", err)
 	}
 	browser, err := pw.Chromium.Launch(launchOpts)
 	if err != nil {
-		log.Fatalf("could not launch browser: %v", err)
+		log.Fatalf("could not launch browser: %v\n", err)
 	}
 	context, _ := browser.NewContext(playwright.BrowserNewContextOptions{
 		UserAgent: playwright.String(c.UserAgent),
@@ -61,7 +70,7 @@ func Start(c *config.Config) {
 	// Open and keep single blank page, so it's not closing
 	_, err = context.NewPage()
 	if err != nil {
-		log.Fatalf("could not create page: %v", err)
+		log.Fatalf("could not create page: %v\n", err)
 	}
 
 	// Start websites fetching
