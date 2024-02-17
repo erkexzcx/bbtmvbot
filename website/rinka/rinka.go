@@ -2,78 +2,113 @@ package rinka
 
 import (
 	"bbtmvbot/database"
+	"bbtmvbot/logger"
 	"bbtmvbot/website"
-	"log"
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 )
 
-type Rinka struct{}
+type Rinka struct {
+	Link   string
+	Domain string
+}
 
-const LINK = "https://www.rinka.lt/nekilnojamojo-turto-skelbimai/butu-nuoma?filter%5BKainaForAll%5D%5Bmin%5D=&filter%5BKainaForAll%5D%5Bmax%5D=&filter%5BNTnuomakambariuskaiciusButai%5D%5Bmin%5D=&filter%5BNTnuomakambariuskaiciusButai%5D%5Bmax%5D=&filter%5BNTnuomabendrasplotas%5D%5Bmin%5D=&filter%5BNTnuomabendrasplotas%5D%5Bmax%5D=&filter%5BNTnuomastatybosmetai%5D%5Bmin%5D=&filter%5BNTnuomastatybosmetai%5D%5Bmax%5D=&filter%5BNTnuomaaukstuskaicius%5D%5Bmin%5D=&filter%5BNTnuomaaukstuskaicius%5D%5Bmax%5D=&filter%5BNTnuomaaukstas%5D%5Bmin%5D=&filter%5BNTnuomaaukstas%5D%5Bmax%5D=&cities%5B0%5D=2&cities%5B1%5D=3"
-const WEBSITE = "rinka.lt"
+func init() {
+	website.Add(&Rinka{
+		Link:   "https://www.rinka.lt/nekilnojamojo-turto-skelbimai/butu-nuoma?filter%5BKainaForAll%5D%5Bmin%5D=&filter%5BKainaForAll%5D%5Bmax%5D=&filter%5BNTnuomakambariuskaiciusButai%5D%5Bmin%5D=&filter%5BNTnuomakambariuskaiciusButai%5D%5Bmax%5D=&filter%5BNTnuomabendrasplotas%5D%5Bmin%5D=&filter%5BNTnuomabendrasplotas%5D%5Bmax%5D=&filter%5BNTnuomastatybosmetai%5D%5Bmin%5D=&filter%5BNTnuomastatybosmetai%5D%5Bmax%5D=&filter%5BNTnuomaaukstuskaicius%5D%5Bmin%5D=&filter%5BNTnuomaaukstuskaicius%5D%5Bmax%5D=&filter%5BNTnuomaaukstas%5D%5Bmin%5D=&filter%5BNTnuomaaukstas%5D%5Bmax%5D=&cities%5B0%5D=2&cities%5B1%5D=3",
+		Domain: "rinka.lt",
+	})
+}
 
-var inProgress = false
-var inProgressMux = sync.Mutex{}
+func (obj *Rinka) GetDomain() string {
+	return obj.Domain
+}
 
 var rePrice = regexp.MustCompile(`Kaina: ([\d,]+),\d+ €`)
 
-func (obj *Rinka) Retrieve(db *database.Database) []*website.Post {
-	posts := make([]*website.Post, 0)
+func (obj *Rinka) Retrieve(db *database.Database, c chan *website.Post) {
+	logger.Logger.Infow("Retrieve started", "website", obj.Domain)
 
-	// If in progress - simply skip current iteration
-	inProgressMux.Lock()
-	if inProgress {
-		defer inProgressMux.Unlock()
-		return posts
+	// Open new playwright blank page
+	page, err := website.PlaywrightContext.NewPage()
+	if err != nil {
+		logger.Logger.Errorw("Could not create blank Playwright page", "website", obj.Domain, "error", err)
+		return
 	}
 
-	// Mark in progress
-	inProgress = true
-	inProgressMux.Unlock()
-
-	// Mark not in progress after function ends
+	// Ensure page is closed after function ends
 	defer func() {
-		inProgressMux.Lock()
-		inProgress = false
-		inProgressMux.Unlock()
+		err = page.Close()
+		if err != nil {
+			logger.Logger.Errorw("Could not close Playwright page", "website", obj.Domain, "error", err)
+		}
 	}()
 
-	res, err := website.GetResponse(LINK, WEBSITE)
-	if err != nil {
-		return posts
-	}
-	defer res.Body.Close()
-	doc, err := goquery.NewDocumentFromReader(res.Body)
-	if err != nil {
-		return posts
+	// Go to website query URL that contains list of posts
+	if _, err = page.Goto(obj.Link); err != nil {
+		logger.Logger.Errorw("Could not go to website", "website", obj.Domain, "error", err)
+		return
 	}
 
-	doc.Find("[id='adsBlock']").First().Find(".ad").Each(func(i int, s *goquery.Selection) {
-		p := &website.Post{}
+	// Extract entries
+	entries, _ := page.Locator("#adsBlock div.ad a.title").All()
+	if len(entries) == 0 {
+		logger.Logger.Errorw("Could not find any posts", "website", obj.Domain)
+		return
+	}
 
-		upstreamID, exists := s.Find("a[itemprop='url']").Attr("href")
-		if !exists {
-			return
+	// Extract all the links now, so we can re-use browser page later
+	links := []string{}
+	for _, entry := range entries {
+		tmplink, err := entry.GetAttribute("href")
+		if err != nil {
+			logger.Logger.Errorw("Could not get post url", "website", obj.Domain, "error", err)
+			continue
 		}
-		p.Link = upstreamID // https://www.rinka.lt/skelbimas/isnuomojamas-1-kambarys-3-kambariu-bute-id-4811032
+		links = append(links, tmplink)
+	}
+	logger.Logger.Debugw(fmt.Sprintf("Found %d links to be processed", len(entries)), "website", obj.Domain)
 
+	for _, link := range links {
+		logger.Logger.Debugw(fmt.Sprintf("Processing post %s", link), "website", obj.Domain)
+
+		// Create new post
+		p := &website.Post{Link: link}
+
+		// If post is already in database - skip it
 		if db.InDatabase(p.Link) {
-			return
+			logger.Logger.Debugw(fmt.Sprintf("Post %s is already in database - skipping", p.Link), "website", obj.Domain)
+			continue
 		}
 
-		postRes, err := website.GetResponse(p.Link, WEBSITE)
-		if err != nil {
-			return
+		// Avoid being blocked/ratelimited/detected
+		logger.Logger.Debugw("Sleeping for 30 seconds to avoid being blocked", "website", obj.Domain)
+		time.Sleep(30 * time.Second)
+
+		// Go to post url
+		if _, err = page.Goto(p.Link); err != nil {
+			logger.Logger.Errorw("Could not go to post", "website", obj.Domain, "error", err)
+			continue
 		}
-		defer postRes.Body.Close()
-		postDoc, err := goquery.NewDocumentFromReader(postRes.Body)
+
+		// Get HTML code of the loaded page
+		content, err := page.Content()
 		if err != nil {
-			return
+			logger.Logger.Errorw("Could not get content of post", "website", obj.Domain, "error", err)
+			continue
+		}
+
+		// Create goquery document from HTML code
+		// This is done because goquery has much more advanced selectors than playwright
+		postDoc, err := goquery.NewDocumentFromReader(strings.NewReader(content))
+		if err != nil {
+			logger.Logger.Errorw("Could not create goquery document from post", "website", obj.Domain, "error", err)
+			continue
 		}
 
 		// Extract details element
@@ -81,8 +116,7 @@ func (obj *Rinka) Retrieve(db *database.Database) []*website.Post {
 		var tmp string
 
 		// Extract phone:
-		tmp = postDoc.Find("#phone_val_value").Text()
-		p.Phone = strings.ReplaceAll(tmp, " ", "")
+		p.Phone, _ = postDoc.Find("div.messageBlock > button[data-number]").Attr("data-number")
 
 		// Extract description:
 		p.Description = postDoc.Find("[itemprop=\"description\"]").Text()
@@ -101,33 +135,21 @@ func (obj *Rinka) Retrieve(db *database.Database) []*website.Post {
 		tmp = detailsElement.Find("dt:contains(\"Kelintame aukšte:\")").Next().Text()
 		if tmp != "" {
 			tmp = strings.TrimSpace(tmp)
-			p.Floor, err = strconv.Atoi(tmp)
-			if err != nil {
-				log.Println("failed to extract Floor number from 'rinka' post")
-				return
-			}
+			p.Floor, _ = strconv.Atoi(tmp)
 		}
 
 		// Extract floor total:
 		tmp = detailsElement.Find("dt:contains(\"Pastato aukštų skaičius:\")").Next().Text()
 		if tmp != "" {
 			tmp = strings.TrimSpace(tmp)
-			p.FloorTotal, err = strconv.Atoi(tmp)
-			if err != nil {
-				log.Println("failed to extract FloorTotal number from 'rinka' post")
-				return
-			}
+			p.FloorTotal, _ = strconv.Atoi(tmp)
 		}
 
 		// Extract area:
 		tmp = detailsElement.Find("dt:contains(\"Bendras plotas, m²:\")").Next().Text()
 		if tmp != "" {
 			tmp = strings.TrimSpace(tmp)
-			p.Area, err = strconv.Atoi(tmp)
-			if err != nil {
-				log.Println("failed to extract Area number from 'rinka' post")
-				return
-			}
+			p.Area, _ = strconv.Atoi(tmp)
 		}
 
 		// Extract price:
@@ -135,11 +157,7 @@ func (obj *Rinka) Retrieve(db *database.Database) []*website.Post {
 		if tmp != "" {
 			arr := rePrice.FindStringSubmatch(tmp)
 			if len(arr) == 2 {
-				p.Price, err = strconv.Atoi(arr[1])
-				if err != nil {
-					log.Println("failed to extract Price number from 'rinka' post")
-					return
-				}
+				p.Price, _ = strconv.Atoi(arr[1])
 			} else if strings.Contains(tmp, "Nenurodyta") {
 				p.Price = -1 // so it gets ignored
 			}
@@ -149,31 +167,36 @@ func (obj *Rinka) Retrieve(db *database.Database) []*website.Post {
 		tmp = detailsElement.Find("dt:contains(\"Kambarių skaičius:\")").Next().Text()
 		if tmp != "" {
 			tmp = strings.TrimSpace(tmp)
-			p.Rooms, err = strconv.Atoi(tmp)
-			if err != nil {
-				log.Println("failed to extract Rooms number from 'rinka' post")
-				return
-			}
+			p.Rooms, _ = strconv.Atoi(tmp)
 		}
 
 		// Extract year:
 		tmp = detailsElement.Find("dt:contains(\"Statybos metai:\")").Next().Text()
 		if tmp != "" {
 			tmp = strings.TrimSpace(tmp)
-			p.Year, err = strconv.Atoi(tmp)
-			if err != nil {
-				log.Println("failed to extract Year number from 'rinka' post")
-				return
-			}
+			p.Year, _ = strconv.Atoi(tmp)
 		}
 
+		// Trim fields
 		p.TrimFields()
-		posts = append(posts, p)
-	})
 
-	return posts
-}
+		logger.Logger.Infow(
+			"Post processed",
+			"website", obj.Domain,
+			"link", p.Link,
+			"phone", p.Phone,
+			"description_length", len(p.Description),
+			"address", p.Address,
+			"heating", p.Heating,
+			"floor", p.Floor,
+			"floor_total", p.FloorTotal,
+			"area", p.Area,
+			"price", p.Price,
+			"rooms", p.Rooms,
+			"year", p.Year,
+		)
 
-func init() {
-	website.Add("rinka", &Rinka{})
+		// Send post to channel
+		c <- p
+	}
 }

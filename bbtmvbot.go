@@ -3,12 +3,14 @@ package bbtmvbot
 import (
 	"bbtmvbot/config"
 	"bbtmvbot/database"
+	"bbtmvbot/logger"
 	"bbtmvbot/website"
 	"log"
 	"path"
+	"sync"
 	"time"
 
-	"github.com/go-co-op/gocron"
+	"github.com/playwright-community/playwright-go"
 	telebot "gopkg.in/telebot.v3"
 )
 
@@ -18,11 +20,15 @@ var (
 )
 
 func Start(c *config.Config) {
+	// Init logger
+	logFilePath := path.Join(c.DataDir, "bbtmvbot.log")
+	logger.InitLogger(logFilePath, c.LogLevel)
+
 	// Open DB
 	var err error
 	db, err = database.Open(path.Join(c.DataDir, "database.db"))
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalln("Could not open database:", err)
 	}
 
 	// Init Telegram bot
@@ -32,32 +38,67 @@ func Start(c *config.Config) {
 	}
 	tb, err = telebot.NewBot(pref)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalln("Could not create Telegram bot:", err)
 	}
 	tb.Use(TelegramMiddlewareUserInDB)
 	initTelegramHandlers()
 	go tb.Start()
 
-	// Init cron
-	location, _ := time.LoadLocation("Europe/Vilnius")
-	s := gocron.NewScheduler(location)
-	s.Every("3m").Do(refreshWebsites) // Retrieve new posts, send to users
-	s.Every("24h").Do(cleanup)        // Cleanup (remove posts that are not seen in the last 30 days)
+	// Init playwright
+	launchOpts := playwright.BrowserTypeLaunchOptions{
+		ExecutablePath: playwright.String("/usr/bin/chromium"),
+		Headless:       playwright.Bool(true),
+	}
+	pw, err := playwright.Run()
+	if err != nil {
+		log.Fatalf("could not start playwright: %v\n", err)
+	}
+	browser, err := pw.Chromium.Launch(launchOpts)
+	if err != nil {
+		log.Fatalf("could not launch browser: %v\n", err)
+	}
+	context, _ := browser.NewContext(playwright.BrowserNewContextOptions{
+		UserAgent: playwright.String(c.UserAgent),
+	})
+	// Make it available globally
+	website.PlaywrightContext = context
 
-	// Start cron and block execution
-	s.StartBlocking()
+	// Open and keep single blank page, so it's not closing
+	_, err = context.NewPage()
+	if err != nil {
+		log.Fatalf("could not create page: %v\n", err)
+	}
+
+	// Start websites fetching
+	go refreshWebsites()
+	go cleanup()
+
+	// Block current routine indefinitely
+	select {}
 }
 
 func refreshWebsites() {
-	for title, site := range website.Websites {
+	postChan := make(chan *website.Post, len(website.Websites))
+	wg := sync.WaitGroup{}
 
-		go func(title string, site website.Website) {
-			posts := site.Retrieve(db)
-			for _, post := range posts {
-				go processPost(post)
-			}
-		}(title, site)
+	// Accept incoming posts and process them
+	go func() {
+		for post := range postChan {
+			processPost(post)
+		}
+	}()
 
+	// Every 10 minutes fetch posts from all websites
+	for {
+		for _, site := range website.Websites {
+			wg.Add(1)
+			go func(site website.Website) {
+				site.Retrieve(db, postChan)
+				wg.Done()
+			}(site)
+		}
+		wg.Wait()
+		time.Sleep(10 * time.Minute)
 	}
 }
 
@@ -77,4 +118,6 @@ func processPost(post *website.Post) {
 
 func cleanup() {
 	db.DeleteOldPosts() // Older than 30 days
+	time.Sleep(24 * time.Hour)
+	go cleanup()
 }

@@ -2,76 +2,111 @@ package nuomininkai
 
 import (
 	"bbtmvbot/database"
+	"bbtmvbot/logger"
 	"bbtmvbot/website"
+	"fmt"
 	"log"
 	"strconv"
 	"strings"
-	"sync"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 )
 
-type Nuomininkai struct{}
+type Nuomininkai struct {
+	Link   string
+	Domain string
+}
 
-const LINK = "https://nuomininkai.lt/paieska/?propery_type=butu-nuoma&propery_contract_type=&propery_location=461&imic_property_district=&new_quartals=&min_price=&max_price=&min_price_meter=&max_price_meter=&min_area=&max_area=&rooms_from=&rooms_to=&high_from=&high_to=&floor_type=&irengimas=&building_type=&house_year_from=&house_year_to=&zm_skaicius=&lot_size_from=&lot_size_to=&by_date="
-const WEBSITE = "nuomininkai.lt"
+func init() {
+	website.Add(&Nuomininkai{
+		Link:   "https://nuomininkai.lt/paieska/?propery_type=butu-nuoma&propery_contract_type=&propery_location=461&imic_property_district=&new_quartals=&min_price=&max_price=&min_price_meter=&max_price_meter=&min_area=&max_area=&rooms_from=&rooms_to=&high_from=&high_to=&floor_type=&irengimas=&building_type=&house_year_from=&house_year_to=&zm_skaicius=&lot_size_from=&lot_size_to=&by_date=",
+		Domain: "nuomininkai.lt",
+	})
+}
 
-var inProgress = false
-var inProgressMux = sync.Mutex{}
+func (obj *Nuomininkai) GetDomain() string {
+	return obj.Domain
+}
 
-func (obj *Nuomininkai) Retrieve(db *database.Database) []*website.Post {
-	posts := make([]*website.Post, 0)
+func (obj *Nuomininkai) Retrieve(db *database.Database, c chan *website.Post) {
+	logger.Logger.Infow("Retrieve started", "website", obj.Domain)
 
-	// If in progress - simply skip current iteration
-	inProgressMux.Lock()
-	if inProgress {
-		defer inProgressMux.Unlock()
-		return posts
+	// Open new playwright blank page
+	page, err := website.PlaywrightContext.NewPage()
+	if err != nil {
+		logger.Logger.Errorw("Could not create blank Playwright page", "website", obj.Domain, "error", err)
+		return
 	}
 
-	// Mark in progress
-	inProgress = true
-	inProgressMux.Unlock()
-
-	// Mark not in progress after function ends
+	// Ensure page is closed after function ends
 	defer func() {
-		inProgressMux.Lock()
-		inProgress = false
-		inProgressMux.Unlock()
+		err = page.Close()
+		if err != nil {
+			logger.Logger.Errorw("Could not close Playwright page", "website", obj.Domain, "error", err)
+		}
 	}()
 
-	res, err := website.GetResponse(LINK, WEBSITE)
-	if err != nil {
-		return posts
-	}
-	defer res.Body.Close()
-	doc, err := goquery.NewDocumentFromReader(res.Body)
-	if err != nil {
-		return posts
+	// Go to website query URL that contains list of posts
+	if _, err = page.Goto(obj.Link); err != nil {
+		logger.Logger.Errorw("Could not go to website", "website", obj.Domain, "error", err)
+		return
 	}
 
-	doc.Find("div.property-listing > ul > li.property_element").Each(func(i int, s *goquery.Selection) {
-		p := &website.Post{}
+	// Extract entries
+	entries, _ := page.Locator("div.property-listing > ul > li.property_element").All()
+	if len(entries) == 0 {
+		logger.Logger.Errorw("Could not find any posts", "website", obj.Domain)
+		return
+	}
 
-		upstreamID, exists := s.Find("h3 > a").Attr("href")
-		if !exists {
-			log.Println("unable to find 'id' of the post in 'nuomininkai' portal")
-			return
+	// Extract all the links now, so we can re-use browser page later
+	links := []string{}
+	for _, entry := range entries {
+		tmplink, err := entry.Locator("div.property-info > h3 > a").GetAttribute("href")
+		if err != nil {
+			logger.Logger.Errorw("Could not get link of post", "website", obj.Domain, "error", err)
+			continue
 		}
-		p.Link = upstreamID // https://nuomininkai.lt/skelbimas/vilniaus-m-sav-vilniaus-m-pilaite-i-kanto-al-isnuomojamas-1-kambario-butas-pilaiteje/
+		links = append(links, tmplink)
+	}
+	logger.Logger.Debugw(fmt.Sprintf("Found %d links to be processed", len(entries)), "website", obj.Domain)
 
+	for _, link := range links {
+		logger.Logger.Debugw(fmt.Sprintf("Processing post %s", link), "website", obj.Domain)
+
+		// Create new post
+		p := &website.Post{Link: link}
+
+		// If post is already in database - skip it
 		if db.InDatabase(p.Link) {
-			return
+			logger.Logger.Debugw(fmt.Sprintf("Post %s is already in database - skipping", p.Link), "website", obj.Domain)
+			continue
 		}
 
-		postRes, err := website.GetResponse(p.Link, WEBSITE)
-		if err != nil {
-			return
+		// Avoid being blocked/ratelimited/detected
+		logger.Logger.Debugw("Sleeping for 30 seconds to avoid being blocked", "website", obj.Domain)
+		time.Sleep(30 * time.Second)
+
+		// Go to post url
+		if _, err = page.Goto(p.Link); err != nil {
+			logger.Logger.Errorw("Could not go to post", "website", obj.Domain, "error", err)
+			continue
 		}
-		defer postRes.Body.Close()
-		postDoc, err := goquery.NewDocumentFromReader(postRes.Body)
+
+		// Get HTML code of the loaded page
+		content, err := page.Content()
 		if err != nil {
-			return
+			logger.Logger.Errorw("Could not get content of post", "website", obj.Domain, "error", err)
+			continue
+		}
+
+		// Create goquery document from HTML code
+		// This is done because goquery has much more advanced selectors than playwright
+		postDoc, err := goquery.NewDocumentFromReader(strings.NewReader(content))
+		if err != nil {
+			logger.Logger.Errorw("Could not create goquery document from post", "website", obj.Domain, "error", err)
+			continue
 		}
 
 		var tmp string
@@ -168,13 +203,26 @@ func (obj *Nuomininkai) Retrieve(db *database.Database) []*website.Post {
 			}
 		}
 
+		// Trim fields
 		p.TrimFields()
-		posts = append(posts, p)
-	})
 
-	return posts
-}
+		logger.Logger.Infow(
+			"Post processed",
+			"website", obj.Domain,
+			"link", p.Link,
+			"phone", p.Phone,
+			"description_length", len(p.Description),
+			"address", p.Address,
+			"heating", p.Heating,
+			"floor", p.Floor,
+			"floor_total", p.FloorTotal,
+			"area", p.Area,
+			"price", p.Price,
+			"rooms", p.Rooms,
+			"year", p.Year,
+		)
 
-func init() {
-	website.Add("nuomininkai", &Nuomininkai{})
+		// Send post to channel
+		c <- p
+	}
 }

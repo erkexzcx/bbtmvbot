@@ -2,82 +2,122 @@ package skelbiu
 
 import (
 	"bbtmvbot/database"
+	"bbtmvbot/logger"
 	"bbtmvbot/website"
+	"fmt"
 	"log"
 	"strconv"
 	"strings"
-	"sync"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 )
 
-type Skelbiu struct{}
+type Skelbiu struct {
+	Link   string
+	Domain string
+}
 
-const LINK = "https://www.skelbiu.lt/skelbimai/?cities=465&category_id=322&cities=465&district=0&cost_min=&cost_max=&status=0&space_min=&space_max=&rooms_min=&rooms_max=&building=0&year_min=&year_max=&floor_min=&floor_max=&floor_type=0&user_type=0&type=1&orderBy=1&import=2&keywords="
-const WEBSITE = "skelbiu.lt"
+func init() {
+	website.Add(&Skelbiu{
+		Link:   "https://www.skelbiu.lt/skelbimai/?cities=465&category_id=322&cities=465&district=0&cost_min=&cost_max=&status=0&space_min=&space_max=&rooms_min=&rooms_max=&building=0&year_min=&year_max=&floor_min=&floor_max=&floor_type=0&user_type=0&type=1&orderBy=1&import=2&keywords=",
+		Domain: "skelbiu.lt",
+	})
+}
 
-var inProgress = false
-var inProgressMux = sync.Mutex{}
+func (obj *Skelbiu) GetDomain() string {
+	return obj.Domain
+}
 
-func (obj *Skelbiu) Retrieve(db *database.Database) []*website.Post {
-	posts := make([]*website.Post, 0)
+func (obj *Skelbiu) Retrieve(db *database.Database, c chan *website.Post) {
+	logger.Logger.Infow("Retrieve started", "website", obj.Domain)
 
-	// If in progress - simply skip current iteration
-	inProgressMux.Lock()
-	if inProgress {
-		defer inProgressMux.Unlock()
-		return posts
+	// Open new playwright blank page
+	page, err := website.PlaywrightContext.NewPage()
+	if err != nil {
+		logger.Logger.Errorw("Could not create blank Playwright page", "website", obj.Domain, "error", err)
+		return
 	}
 
-	// Mark in progress
-	inProgress = true
-	inProgressMux.Unlock()
-
-	// Mark not in progress after function ends
+	// Ensure page is closed after function ends
 	defer func() {
-		inProgressMux.Lock()
-		inProgress = false
-		inProgressMux.Unlock()
+		err = page.Close()
+		if err != nil {
+			logger.Logger.Errorw("Could not close Playwright page", "website", obj.Domain, "error", err)
+		}
 	}()
 
-	res, err := website.GetResponse(LINK, WEBSITE)
-	if err != nil {
-		return posts
-	}
-	defer res.Body.Close()
-	doc, err := goquery.NewDocumentFromReader(res.Body)
-	if err != nil {
-		return posts
+	// Go to website query URL that contains list of posts
+	if _, err = page.Goto(obj.Link); err != nil {
+		logger.Logger.Errorw("Could not go to website", "website", obj.Domain, "error", err)
+		return
 	}
 
-	doc.Find("#itemsList > ul > li.simpleAds:not(.passivatedItem)").Each(func(i int, s *goquery.Selection) {
-		p := &website.Post{}
+	// Extract entries
+	entries, _ := page.Locator("div.standard-list-container a.standard-list-item").All()
+	if len(entries) == 0 {
+		logger.Logger.Errorw("Could not find any posts", "website", obj.Domain)
+		return
+	}
 
-		upstreamID, exists := s.Find("a.adsImage[data-item-id]").Attr("data-item-id")
-		if !exists {
-			return
+	// Extract all the links now, so we can re-use browser page later
+	links := []string{}
+	for _, entry := range entries {
+		upstreamID, err := entry.First().GetAttribute("id")
+		if err != nil {
+			logger.Logger.Errorw("Could not get id attribute", "website", obj.Domain, "error", err)
+			continue
 		}
-		p.Link = "https://skelbiu.lt/skelbimai/" + upstreamID + ".html" // https://skelbiu.lt/42588321.html
+		tmplink := "https://skelbiu.lt/skelbimai/" + strings.ReplaceAll(upstreamID, "ads", "") + ".html" // https://skelbiu.lt/42588321.html
+		links = append(links, tmplink)
+	}
+	logger.Logger.Debugw(fmt.Sprintf("Found %d links to be processed", len(entries)), "website", obj.Domain)
 
+	for _, link := range links {
+		logger.Logger.Debugw(fmt.Sprintf("Processing post %s", link), "website", obj.Domain)
+
+		// Create new post
+		p := &website.Post{Link: link}
+
+		// If post is already in database - skip it
 		if db.InDatabase(p.Link) {
-			return
+			logger.Logger.Debugw(fmt.Sprintf("Post %s is already in database - skipping", p.Link), "website", obj.Domain)
+			continue
 		}
 
-		postRes, err := website.GetResponse(p.Link, WEBSITE)
-		if err != nil {
-			return
+		// Avoid being blocked/ratelimited/detected
+		logger.Logger.Debugw("Sleeping for 30 seconds to avoid being blocked", "website", obj.Domain)
+		time.Sleep(30 * time.Second)
+
+		// Go to post url
+		if _, err = page.Goto(p.Link); err != nil {
+			logger.Logger.Errorw("Could not go to post", "website", obj.Domain, "error", err)
+			continue
 		}
-		defer postRes.Body.Close()
-		postDoc, err := goquery.NewDocumentFromReader(postRes.Body)
+
+		// Reveal phone number
+		page.Locator("div.phone-button[onclick]").First().Click()
+		page.Locator(".js-number-to-show:visible .phone-button .js-phone-place").First().WaitFor()
+
+		// Get HTML code of the loaded page
+		content, err := page.Content()
 		if err != nil {
-			return
+			logger.Logger.Errorw("Could not get content of post", "website", obj.Domain, "error", err)
+			continue
+		}
+
+		// Create goquery document from HTML code
+		// This is done because goquery has much more advanced selectors than playwright
+		postDoc, err := goquery.NewDocumentFromReader(strings.NewReader(content))
+		if err != nil {
+			logger.Logger.Errorw("Could not create goquery document from post", "website", obj.Domain, "error", err)
+			continue
 		}
 
 		var tmp string
 
 		// Extract phone:
-		tmp = postDoc.Find("div.phone-button > div.primary").Text()
-		p.Phone = strings.ReplaceAll(tmp, " ", "")
+		p.Phone = postDoc.Find(".js-phone-place").First().Text()
 
 		// Extract description:
 		p.Description = postDoc.Find("div[itemprop='description']").Text()
@@ -155,13 +195,27 @@ func (obj *Skelbiu) Retrieve(db *database.Database) []*website.Post {
 			return
 		}
 
+		// Trim fields
 		p.TrimFields()
-		posts = append(posts, p)
-	})
 
-	return posts
-}
+		logger.Logger.Infow(
+			"Post processed",
+			"website", obj.Domain,
+			"link", p.Link,
+			"phone", p.Phone,
+			"description_length", len(p.Description),
+			"address", p.Address,
+			"heating", p.Heating,
+			"floor", p.Floor,
+			"floor_total", p.FloorTotal,
+			"area", p.Area,
+			"price", p.Price,
+			"rooms", p.Rooms,
+			"year", p.Year,
+		)
 
-func init() {
-	website.Add("skelbiu", &Skelbiu{})
+		// Send post to channel
+		c <- p
+
+	}
 }

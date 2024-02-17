@@ -4,14 +4,17 @@ import (
 	"errors"
 	"net"
 	"os"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v2"
 )
 
 type Config struct {
+	LogLevel       string `yaml:"log_level"`
 	TelegramApiKey string `yaml:"telegram_api_key"`
 	DataDir        string `yaml:"data_dir"`
+	UserAgent      string `yaml:"user_agent"`
 	Metrics        struct {
 		Bind string `yaml:"bind"`
 	} `yaml:"metrics"`
@@ -43,19 +46,25 @@ func New(path string) (*Config, error) {
 	if c.Parsing.Interval == 0 {
 		c.Parsing.Interval = 3 * time.Minute
 	}
+	if c.LogLevel == "" {
+		c.LogLevel = "info"
+	}
+	c.LogLevel = strings.ToLower(c.LogLevel)
 
 	// Validation
 	if len(c.TelegramApiKey) == 0 {
 		return nil, errors.New("missing telegram_api_key")
-	}
-	if _, err = os.Stat(c.DataDir); os.IsNotExist(err) {
-		return nil, errors.New("missing or invalid data_dir")
 	}
 	if _, _, err := net.SplitHostPort(c.Metrics.Bind); err != nil {
 		return nil, errors.New("missing or invalid metrics_bind")
 	}
 	if c.Parsing.Interval < 3*time.Second {
 		return nil, errors.New("parsing interval cannot be lower than 3 seconds")
+	}
+	switch c.LogLevel {
+	case "debug", "info", "warn", "error":
+	default:
+		return nil, errors.New("invalid log_level")
 	}
 
 	return &c, err
