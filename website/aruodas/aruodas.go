@@ -118,6 +118,9 @@ func (obj *Aruodas) Retrieve(db *database.Database, c chan *website.Post) {
 		el := postDoc.Find("dt:contains(\"Šildymas\")")
 		if el.Length() != 0 {
 			p.Heating = el.Next().Text()
+		} else {
+			log.Printf("Failed to extract Heating from %s post\n", obj.Domain)
+			continue
 		}
 
 		// Extract floor:
@@ -127,7 +130,7 @@ func (obj *Aruodas) Retrieve(db *database.Database, c chan *website.Post) {
 			tmp = strings.TrimSpace(tmp)
 			p.Floor, err = strconv.Atoi(tmp)
 			if err != nil {
-				log.Println("failed to extract Floor number from 'aruodas' post")
+				log.Printf("Failed to extract Floor number from %s post\n", obj.Domain)
 				continue
 			}
 		}
@@ -139,7 +142,7 @@ func (obj *Aruodas) Retrieve(db *database.Database, c chan *website.Post) {
 			tmp = strings.TrimSpace(tmp)
 			p.FloorTotal, err = strconv.Atoi(tmp)
 			if err != nil {
-				log.Println("failed to extract FloorTotal number from 'aruodas' post")
+				log.Printf("Failed to extract Floor Total number from %s post\n", obj.Domain)
 				continue
 			}
 		}
@@ -156,7 +159,7 @@ func (obj *Aruodas) Retrieve(db *database.Database, c chan *website.Post) {
 			}
 			p.Area, err = strconv.Atoi(tmp)
 			if err != nil {
-				log.Println("failed to extract Area number from 'aruodas' post")
+				log.Printf("Failed to extract Area number from %s post\n", obj.Domain)
 				continue
 			}
 		}
@@ -170,7 +173,7 @@ func (obj *Aruodas) Retrieve(db *database.Database, c chan *website.Post) {
 			tmp = strings.ReplaceAll(tmp, "€", "")
 			p.Price, err = strconv.Atoi(tmp)
 			if err != nil {
-				log.Println("failed to extract Price number from 'aruodas' post")
+				log.Printf("Failed to extract Price number from %s post\n", obj.Domain)
 				continue
 			}
 		}
@@ -182,7 +185,7 @@ func (obj *Aruodas) Retrieve(db *database.Database, c chan *website.Post) {
 			tmp = strings.TrimSpace(tmp)
 			p.Rooms, err = strconv.Atoi(tmp)
 			if err != nil {
-				log.Println("failed to extract Rooms number from 'aruodas' post")
+				log.Printf("Failed to extract Rooms number from %s post\n", obj.Domain)
 				continue
 			}
 		}
@@ -197,7 +200,7 @@ func (obj *Aruodas) Retrieve(db *database.Database, c chan *website.Post) {
 			}
 			p.Year, err = strconv.Atoi(tmp)
 			if err != nil {
-				log.Println("failed to extract Year number from 'aruodas' post")
+				log.Printf("Failed to extract Year number from %s post\n", obj.Domain)
 				continue
 			}
 		}
