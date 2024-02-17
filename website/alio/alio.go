@@ -6,72 +6,101 @@ import (
 	"log"
 	"strconv"
 	"strings"
-	"sync"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 )
 
-type Alio struct{}
+type Alio struct {
+	Link   string
+	Domain string
+}
 
-const LINK = "https://www.alio.lt/paieska/?category_id=1393&city_id=228626&search_block=1&search[eq][adresas_1]=228626&order=ad_id"
-const WEBSITE = "alio.lt"
+func init() {
+	website.Add(&Alio{
+		Link:   "https://www.alio.lt/paieska/?category_id=1393&city_id=228626&search_block=1&search[eq][adresas_1]=228626&order=ad_id",
+		Domain: "alio.lt",
+	})
+}
 
-var inProgress = false
-var inProgressMux = sync.Mutex{}
+func (obj *Alio) GetDomain() string {
+	return obj.Domain
+}
 
-func (obj *Alio) Retrieve(db *database.Database) []*website.Post {
-	posts := make([]*website.Post, 0)
+func (obj *Alio) Retrieve(db *database.Database, c chan *website.Post) {
 
-	// If in progress - simply skip current iteration
-	inProgressMux.Lock()
-	if inProgress {
-		defer inProgressMux.Unlock()
-		return posts
+	// Open new playwright blank page
+	page, err := website.PlaywrightContext.NewPage()
+	if err != nil {
+		log.Printf("Could not create blank page for %s: %v\n", obj.Domain, err)
+		return
 	}
 
-	// Mark in progress
-	inProgress = true
-	inProgressMux.Unlock()
-
-	// Mark not in progress after function ends
+	// Ensure page is closed after function ends
 	defer func() {
-		inProgressMux.Lock()
-		inProgress = false
-		inProgressMux.Unlock()
+		err = page.Close()
+		if err != nil {
+			log.Printf("Could not close %s page: %v\n", obj.Domain, err)
+		}
 	}()
 
-	res, err := website.GetResponse(LINK, WEBSITE)
-	if err != nil {
-		return posts
-	}
-	defer res.Body.Close()
-	doc, err := goquery.NewDocumentFromReader(res.Body)
-	if err != nil {
-		return posts
+	log.Printf("Retrieving posts from %s", obj.Domain)
+
+	// Go to website query URL that contains list of posts
+	if _, err = page.Goto(obj.Link); err != nil {
+		log.Printf("could not goto %s: %v\n", obj.Link, err)
+		return
 	}
 
-	doc.Find("#main_left_b > #main-content-center > div.result").Each(func(i int, s *goquery.Selection) {
-		p := &website.Post{}
+	// Extract entries
+	entries, _ := page.Locator("#main_left_b > #main-content-center > div.result").All()
+	log.Printf("Found %d entries in %s\n", len(entries), obj.Domain)
 
-		upstreamID, ok := s.Attr("id")
-		if !ok {
-			log.Println("Post ID is not found in 'alio' website")
-			return
+	// Extract all the links now, so we can re-use browser page later
+	links := []string{}
+	for _, entry := range entries {
+		upstreamID, err := entry.GetAttribute("id")
+		if err != nil {
+			log.Printf("could not get id attribute from %s: %v\n", obj.Domain, err)
+			continue
 		}
-		p.Link = "https://www.alio.lt/skelbimai/ID" + strings.ReplaceAll(upstreamID, "lv_ad_id_", "") + ".html" // https://www.alio.lt/skelbimai/ID60331923.html
+		tmplink := "https://www.alio.lt/skelbimai/ID" + strings.ReplaceAll(upstreamID, "lv_ad_id_", "") + ".html" // https://www.alio.lt/skelbimai/ID60331923.html
+		links = append(links, tmplink)
+		log.Printf("Crafted post link for %s: %s\n", obj.Domain, tmplink)
+	}
 
+	for _, link := range links {
+		// Create new post
+		p := &website.Post{Link: link}
+
+		// If post is already in database - skip it
 		if db.InDatabase(p.Link) {
-			return
+			log.Printf("Post %s is already in database - skipping...\n", p.Link)
+			continue
 		}
 
-		postRes, err := website.GetResponse(p.Link, WEBSITE)
-		if err != nil {
-			return
+		// Avoid being blocked/ratelimited/detected
+		log.Printf("Sleeping for 30 seconds to avoid being blocked by %s\n", obj.Domain)
+		time.Sleep(30 * time.Second)
+
+		// Go to post url
+		if _, err = page.Goto(p.Link); err != nil {
+			log.Printf("could not goto %s: %v\n", p.Link, err)
+			continue
 		}
-		defer postRes.Body.Close()
-		postDoc, err := goquery.NewDocumentFromReader(postRes.Body)
+
+		// Get HTML code of the loaded page
+		content, err := page.Content()
 		if err != nil {
-			return
+			log.Printf("could not get content of %s: %v\n", p.Link, err)
+			continue
+		}
+
+		// Create goquery document from HTML code
+		postDoc, err := goquery.NewDocumentFromReader(strings.NewReader(content))
+		if err != nil {
+			log.Printf("could not create goquery document from %s: %v\n", p.Link, err)
+			continue
 		}
 
 		// Extract phone:
@@ -173,12 +202,8 @@ func (obj *Alio) Retrieve(db *database.Database) []*website.Post {
 		}
 
 		p.TrimFields()
-		posts = append(posts, p)
-	})
 
-	return posts
-}
+		c <- p
+	}
 
-func init() {
-	website.Add("alio", &Alio{})
 }
