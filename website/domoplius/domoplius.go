@@ -115,7 +115,7 @@ func (obj *Domoplius) Retrieve(db *database.Database, c chan *website.Post) {
 		// Extract phone:
 		tmp, err := postDoc.Find(".decode-real-value").Html()
 		if err == nil {
-			p.Phone = strings.ReplaceAll(tmp, " ", "")
+			p.Phone = tmp
 		}
 
 		// Extract description:

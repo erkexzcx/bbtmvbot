@@ -109,9 +109,10 @@ func (obj *Alio) Retrieve(db *database.Database, c chan *website.Post) {
 			continue
 		}
 
+		var tmp string
+
 		// Extract phone:
-		tmp := postDoc.Find("#phone_val_value").Text()
-		p.Phone = strings.ReplaceAll(tmp, " ", "")
+		p.Phone = postDoc.Find("#phone_val_value").Text()
 
 		// Extract description:
 		p.Description = postDoc.Find("#adv_description_b > .a_line_val").Text()

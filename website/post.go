@@ -122,4 +122,5 @@ func (p *Post) TrimFields() {
 	p.Address = strings.TrimSpace(p.Address)
 	p.Heating = strings.TrimSpace(p.Heating)
 	p.Phone = strings.TrimSpace(p.Phone)
+	p.Phone = strings.ReplaceAll(p.Phone, " ", "")
 }
