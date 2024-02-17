@@ -27,7 +27,7 @@ func Start(c *config.Config) {
 		log.Fatalln("Could not open log file:", err)
 	}
 	defer f.Close()
-	logger.InitLogger(f)
+	logger.InitLogger(f, c.LogLevel)
 
 	// Open DB
 	db, err = database.Open(path.Join(c.DataDir, "database.db"))

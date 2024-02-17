@@ -1,3 +1,6 @@
+# Log level
+#log_level: info # debug, info, warn, error
+
 # Data dir:
 #data_dir: data
 

@@ -4,12 +4,14 @@ import (
 	"errors"
 	"net"
 	"os"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v2"
 )
 
 type Config struct {
+	LogLevel       string `yaml:"log_level"`
 	TelegramApiKey string `yaml:"telegram_api_key"`
 	DataDir        string `yaml:"data_dir"`
 	UserAgent      string `yaml:"user_agent"`
@@ -44,6 +46,10 @@ func New(path string) (*Config, error) {
 	if c.Parsing.Interval == 0 {
 		c.Parsing.Interval = 3 * time.Minute
 	}
+	if c.LogLevel == "" {
+		c.LogLevel = "info"
+	}
+	c.LogLevel = strings.ToLower(c.LogLevel)
 
 	// Validation
 	if len(c.TelegramApiKey) == 0 {
@@ -54,6 +60,11 @@ func New(path string) (*Config, error) {
 	}
 	if c.Parsing.Interval < 3*time.Second {
 		return nil, errors.New("parsing interval cannot be lower than 3 seconds")
+	}
+	switch c.LogLevel {
+	case "debug", "info", "warn", "error":
+	default:
+		return nil, errors.New("invalid log_level")
 	}
 
 	return &c, err

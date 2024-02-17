@@ -9,17 +9,28 @@ import (
 
 var Logger *zap.SugaredLogger
 
-func InitLogger(f *os.File) {
+func InitLogger(f *os.File, level string) {
 	pe := zap.NewProductionEncoderConfig()
 	fileEncoder := zapcore.NewJSONEncoder(pe)
 
 	pe.EncodeTime = zapcore.ISO8601TimeEncoder
 	consoleEncoder := zapcore.NewConsoleEncoder(pe)
 
-	level := zap.DebugLevel
+	var logLevel zapcore.Level
+	switch level {
+	case "debug":
+		logLevel = zapcore.DebugLevel
+	case "info":
+		logLevel = zapcore.InfoLevel
+	case "warn":
+		logLevel = zapcore.WarnLevel
+	case "error":
+		logLevel = zapcore.ErrorLevel
+	}
+
 	core := zapcore.NewTee(
-		zapcore.NewCore(fileEncoder, zapcore.AddSync(f), level),
-		zapcore.NewCore(consoleEncoder, zapcore.AddSync(os.Stdout), level),
+		zapcore.NewCore(fileEncoder, zapcore.AddSync(f), logLevel),
+		zapcore.NewCore(consoleEncoder, zapcore.AddSync(os.Stdout), logLevel),
 	)
 
 	l := zap.New(core)
