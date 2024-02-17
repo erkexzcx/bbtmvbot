@@ -6,7 +6,6 @@ import (
 	"bbtmvbot/logger"
 	"bbtmvbot/website"
 	"log"
-	"os"
 	"path"
 	"sync"
 	"time"
@@ -22,14 +21,11 @@ var (
 
 func Start(c *config.Config) {
 	// Init logger
-	f, err := os.OpenFile(path.Join(c.DataDir, "bbtmvbot.log"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		log.Fatalln("Could not open log file:", err)
-	}
-	defer f.Close()
-	logger.InitLogger(f, c.LogLevel)
+	logFilePath := path.Join(c.DataDir, "bbtmvbot.log")
+	logger.InitLogger(logFilePath, c.LogLevel)
 
 	// Open DB
+	var err error
 	db, err = database.Open(path.Join(c.DataDir, "database.db"))
 	if err != nil {
 		log.Fatalln("Could not open database:", err)
@@ -51,7 +47,7 @@ func Start(c *config.Config) {
 	// Init playwright
 	launchOpts := playwright.BrowserTypeLaunchOptions{
 		ExecutablePath: playwright.String("/usr/bin/chromium"),
-		Headless:       playwright.Bool(false),
+		Headless:       playwright.Bool(true),
 	}
 	pw, err := playwright.Run()
 	if err != nil {
