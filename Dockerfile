@@ -13,7 +13,6 @@ RUN CGO_ENABLED=1 GOOS=$TARGETOS GOARCH=$TARGETARCH GOARM=${TARGETVARIANT#v} go 
 
 FROM alpine:3.19
 RUN apk add --no-cache ca-certificates gcompat tzdata chromium nodejs
-RUN npm init playwright@latest -y
 COPY --from=builder /root/go/bin/playwright /root/go/bin/playwright
 COPY --from=builder /app/bbtmvbot /bbtmvbot
 ENTRYPOINT ["/bbtmvbot"]
