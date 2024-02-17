@@ -102,6 +102,7 @@ func (obj *Aruodas) Retrieve(db *database.Database, c chan *website.Post) {
 		}
 
 		// Create goquery document from HTML code
+		// This is done because goquery has much more advanced selectors than playwright
 		postDoc, err := goquery.NewDocumentFromReader(strings.NewReader(content))
 		if err != nil {
 			logger.Logger.Errorw("Could not create goquery document from post", "website", obj.Domain, "error", err)

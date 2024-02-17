@@ -2,8 +2,9 @@ package alio
 
 import (
 	"bbtmvbot/database"
+	"bbtmvbot/logger"
 	"bbtmvbot/website"
-	"log"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -28,11 +29,12 @@ func (obj *Alio) GetDomain() string {
 }
 
 func (obj *Alio) Retrieve(db *database.Database, c chan *website.Post) {
+	logger.Logger.Infow("Retrieve started", "website", obj.Domain)
 
 	// Open new playwright blank page
 	page, err := website.PlaywrightContext.NewPage()
 	if err != nil {
-		log.Printf("Could not create blank page for %s: %v\n", obj.Domain, err)
+		logger.Logger.Errorw("Could not create blank Playwright page", "website", obj.Domain, "error", err)
 		return
 	}
 
@@ -40,66 +42,70 @@ func (obj *Alio) Retrieve(db *database.Database, c chan *website.Post) {
 	defer func() {
 		err = page.Close()
 		if err != nil {
-			log.Printf("Could not close %s page: %v\n", obj.Domain, err)
+			logger.Logger.Errorw("Could not close Playwright page", "website", obj.Domain, "error", err)
 		}
 	}()
 
-	log.Printf("Retrieving posts from %s", obj.Domain)
-
 	// Go to website query URL that contains list of posts
 	if _, err = page.Goto(obj.Link); err != nil {
-		log.Printf("could not goto %s: %v\n", obj.Link, err)
+		logger.Logger.Errorw("Could not go to website", "website", obj.Domain, "error", err)
 		return
 	}
 
 	// Extract entries
 	entries, _ := page.Locator("#main_left_b > #main-content-center > div.result").All()
-	log.Printf("Found %d entries in %s\n", len(entries), obj.Domain)
+	if len(entries) == 0 {
+		logger.Logger.Errorw("Could not find any posts", "website", obj.Domain)
+		return
+	}
 
 	// Extract all the links now, so we can re-use browser page later
 	links := []string{}
 	for _, entry := range entries {
 		upstreamID, err := entry.GetAttribute("id")
 		if err != nil {
-			log.Printf("could not get id attribute from %s: %v\n", obj.Domain, err)
+			logger.Logger.Errorw("Could not get data-id attribute", "website", obj.Domain, "error", err)
 			continue
 		}
 		tmplink := "https://www.alio.lt/skelbimai/ID" + strings.ReplaceAll(upstreamID, "lv_ad_id_", "") + ".html" // https://www.alio.lt/skelbimai/ID60331923.html
 		links = append(links, tmplink)
-		log.Printf("Crafted post link for %s: %s\n", obj.Domain, tmplink)
 	}
+	logger.Logger.Debugw(fmt.Sprintf("Found %d links to be processed", len(entries)), "website", obj.Domain)
 
 	for _, link := range links {
+		logger.Logger.Debugw(fmt.Sprintf("Processing post %s", link), "website", obj.Domain)
+
 		// Create new post
 		p := &website.Post{Link: link}
 
 		// If post is already in database - skip it
 		if db.InDatabase(p.Link) {
-			log.Printf("Post %s is already in database - skipping...\n", p.Link)
+			logger.Logger.Debugw(fmt.Sprintf("Post %s is already in database - skipping", p.Link), "website", obj.Domain)
 			continue
 		}
 
 		// Avoid being blocked/ratelimited/detected
-		log.Printf("Sleeping for 30 seconds to avoid being blocked by %s\n", obj.Domain)
+		logger.Logger.Debugw("Sleeping for 30 seconds to avoid being blocked", "website", obj.Domain)
 		time.Sleep(30 * time.Second)
 
 		// Go to post url
 		if _, err = page.Goto(p.Link); err != nil {
-			log.Printf("could not goto %s: %v\n", p.Link, err)
+			logger.Logger.Errorw("Could not go to post", "website", obj.Domain, "error", err)
 			continue
 		}
 
 		// Get HTML code of the loaded page
 		content, err := page.Content()
 		if err != nil {
-			log.Printf("could not get content of %s: %v\n", p.Link, err)
+			logger.Logger.Errorw("Could not get content of post", "website", obj.Domain, "error", err)
 			continue
 		}
 
 		// Create goquery document from HTML code
+		// This is done because goquery has much more advanced selectors than playwright
 		postDoc, err := goquery.NewDocumentFromReader(strings.NewReader(content))
 		if err != nil {
-			log.Printf("could not create goquery document from %s: %v\n", p.Link, err)
+			logger.Logger.Errorw("Could not create goquery document from post", "website", obj.Domain, "error", err)
 			continue
 		}
 
@@ -127,11 +133,7 @@ func (obj *Alio) Retrieve(db *database.Database, c chan *website.Post) {
 		if el.Length() != 0 {
 			tmp = el.Find(".a_line_val").Text()
 			tmp = strings.TrimSpace(tmp)
-			p.Floor, err = strconv.Atoi(tmp)
-			if err != nil {
-				log.Println("failed to extract Floor number from 'alio' post")
-				return
-			}
+			p.Floor, _ = strconv.Atoi(tmp)
 		}
 
 		// Extract floor total:
@@ -139,11 +141,7 @@ func (obj *Alio) Retrieve(db *database.Database, c chan *website.Post) {
 		if el.Length() != 0 {
 			tmp = el.Find(".a_line_val").Text()
 			tmp = strings.TrimSpace(tmp)
-			p.FloorTotal, err = strconv.Atoi(tmp)
-			if err != nil {
-				log.Println("failed to extract FloorTotal number from 'alio' post")
-				return
-			}
+			p.FloorTotal, _ = strconv.Atoi(tmp)
 		}
 
 		// Extract area:
@@ -153,11 +151,7 @@ func (obj *Alio) Retrieve(db *database.Database, c chan *website.Post) {
 			tmp = strings.TrimSpace(tmp)
 			tmp = strings.Split(tmp, " ")[0]
 			tmp = strings.Split(tmp, ".")[0]
-			p.Area, err = strconv.Atoi(tmp)
-			if err != nil {
-				log.Println("failed to extract Area number from 'alio' post")
-				return
-			}
+			p.Area, _ = strconv.Atoi(tmp)
 		}
 
 		// Extract price:
@@ -169,11 +163,7 @@ func (obj *Alio) Retrieve(db *database.Database, c chan *website.Post) {
 			if strings.Contains(tmp, ".") {
 				tmp = strings.Split(tmp, ".")[0]
 			}
-			p.Price, err = strconv.Atoi(tmp)
-			if err != nil {
-				log.Println("failed to extract Price number from 'alio' post")
-				return
-			}
+			p.Price, _ = strconv.Atoi(tmp)
 		}
 
 		// Extract rooms:
@@ -181,11 +171,7 @@ func (obj *Alio) Retrieve(db *database.Database, c chan *website.Post) {
 		if el.Length() != 0 {
 			tmp = el.Find(".a_line_val").Text()
 			tmp = strings.TrimSpace(tmp)
-			p.Rooms, err = strconv.Atoi(tmp)
-			if err != nil {
-				log.Println("failed to extract Rooms number from 'alio' post")
-				return
-			}
+			p.Rooms, _ = strconv.Atoi(tmp)
 		}
 
 		// Extract year:
@@ -194,15 +180,29 @@ func (obj *Alio) Retrieve(db *database.Database, c chan *website.Post) {
 			tmp = el.Find(".a_line_val").Text()
 			tmp = strings.TrimSpace(tmp)
 			tmp = strings.Split(tmp, " ")[0]
-			p.Year, err = strconv.Atoi(tmp)
-			if err != nil {
-				log.Println("failed to extract Year number from 'alio' post")
-				return
-			}
+			p.Year, _ = strconv.Atoi(tmp)
 		}
 
+		// Trim fields
 		p.TrimFields()
 
+		logger.Logger.Infow(
+			"Post processed",
+			"website", obj.Domain,
+			"link", p.Link,
+			"phone", p.Phone,
+			"description_length", len(p.Description),
+			"address", p.Address,
+			"heating", p.Heating,
+			"floor", p.Floor,
+			"floor_total", p.FloorTotal,
+			"area", p.Area,
+			"price", p.Price,
+			"rooms", p.Rooms,
+			"year", p.Year,
+		)
+
+		// Send post to channel
 		c <- p
 	}
 
