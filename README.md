@@ -43,4 +43,4 @@ services:
       - ./bbtmvbot/data:/data
 ```
 
-Additionally, I highly recommend setting up logs database and parse contents of `data/bbtmvbot.log` file.
+Additionally, I highly recommend setting up logs database and parse contents of `data/bbtmvbot.log` file. If set up properly, you would be able to setup dashboards to monitor if things like price would drop to 0 for some website, or things like phone number becomes empty. This is simply for troubleshooting purposes, but not mandatory.
