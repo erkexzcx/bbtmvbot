@@ -13,8 +13,9 @@ jobs:
       matrix:
         platform:
           - linux/amd64
-          - linux/arm64
-          - linux/arm/v7
+          # Unsupported by playwraight. So sorry.....
+          # - linux/arm64
+          # - linux/arm/v7
     steps:
       - uses: actions/checkout@v4
 
