@@ -46,8 +46,7 @@ func Start(c *config.Config) {
 
 	// Init playwright
 	launchOpts := playwright.BrowserTypeLaunchOptions{
-		ExecutablePath: playwright.String("/usr/bin/chromium"),
-		Headless:       playwright.Bool(true),
+		Headless: playwright.Bool(true),
 	}
 	pw, err := playwright.Run()
 	if err != nil {
