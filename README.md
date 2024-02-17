@@ -26,10 +26,21 @@ config - Configure bot settings
 ```
 Once you set-up bot, you should have your bot's Telegram **API key**.
 
-2. Docker
+2. Usage
 
-TODO. As of now I use this command, no port forward for prometheus metrics:
+Use Docker Compose:
+```
+services:
 
+  bbtmvbot:
+    image: ghcr.io/erkexzcx/bbtmvbot
+    container_name: bbtmvbot
+    restart: unless-stopped
+    environment:
+      - TZ=Europe/Vilnius
+    volumes:
+      - ./bbtmvbot/config.yml:/config.yml
+      - ./bbtmvbot/data:/data
 ```
-docker run --name bbtmvbot -v $(pwd)/config.yml:/config.yml -v $(pwd)/data:/data ghcr.io/erkexzcx/bbtmvbot:latest
-```
+
+Additionally, I highly recommend setting up logs database and parse contents of `data/bbtmvbot.log` file.
