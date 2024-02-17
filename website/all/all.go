@@ -6,7 +6,7 @@ import (
 	//FIXED _ "bbtmvbot/website/aruodas"
 	//FIXED _ "bbtmvbot/website/domoplius"
 	//FIXED _ "bbtmvbot/website/kampas"
-	_ "bbtmvbot/website/nuomininkai"
-	// _ "bbtmvbot/website/rinka"
-	// _ "bbtmvbot/website/skelbiu"
+	//FIXED _ "bbtmvbot/website/nuomininkai"
+	//FIXED _ "bbtmvbot/website/rinka"
+	_ "bbtmvbot/website/skelbiu"
 )
