@@ -30,7 +30,7 @@ func (obj *Nuomininkai) GetDomain() string {
 }
 
 func (obj *Nuomininkai) Retrieve(db *database.Database, c chan *website.Post) {
-	logger.Logger.Infow("Retrieve started", "website", obj.Domain)
+	logger.Logger.Debugw("Retrieve started", "website", obj.Domain)
 
 	// Open new playwright blank page
 	page, err := website.PlaywrightContext.NewPage()
