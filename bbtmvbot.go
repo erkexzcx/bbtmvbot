@@ -6,9 +6,9 @@ import (
 	"bbtmvbot/website"
 	"log"
 	"path"
+	"sync"
 	"time"
 
-	"github.com/go-co-op/gocron"
 	"github.com/playwright-community/playwright-go"
 	telebot "gopkg.in/telebot.v3"
 )
@@ -64,26 +64,36 @@ func Start(c *config.Config) {
 		log.Fatalf("could not create page: %v", err)
 	}
 
-	// Init cron
-	location, _ := time.LoadLocation("Europe/Vilnius")
-	s := gocron.NewScheduler(location)
-	s.Every("10m").Do(refreshWebsites) // Retrieve new posts, send to users
-	s.Every("24h").Do(cleanup)         // Cleanup (remove posts that are not seen in the last 30 days)
+	// Start websites fetching
+	go refreshWebsites()
+	go cleanup()
 
-	// Start cron and block execution
-	s.StartBlocking()
+	// Block current routine indefinitely
+	select {}
 }
 
 func refreshWebsites() {
-	for title, site := range website.Websites {
+	postChan := make(chan *website.Post, len(website.Websites))
+	wg := sync.WaitGroup{}
 
-		go func(title string, site website.Website) {
-			posts := site.Retrieve(db)
-			for _, post := range posts {
-				go processPost(post)
-			}
-		}(title, site)
+	// Accept incoming posts and process them
+	go func() {
+		for post := range postChan {
+			processPost(post)
+		}
+	}()
 
+	// Every 10 minutes fetch posts from all websites
+	for {
+		for _, site := range website.Websites {
+			wg.Add(1)
+			go func(site website.Website) {
+				site.Retrieve(db, postChan)
+				wg.Done()
+			}(site)
+		}
+		wg.Wait()
+		time.Sleep(10 * time.Minute)
 	}
 }
 
@@ -103,4 +113,6 @@ func processPost(post *website.Post) {
 
 func cleanup() {
 	db.DeleteOldPosts() // Older than 30 days
+	time.Sleep(24 * time.Hour)
+	go cleanup()
 }
