@@ -102,7 +102,7 @@ Here is how you can expand your `docker-compose.yml` by appending below contents
     restart: always
     volumes:
       - ./vector/vector.yaml:/etc/vector/vector.yaml:ro
-      - ../bbtmvbot/bbtmvbot/data/bbtmvbot.log:/bbtmvbot.log:ro
+      - ./bbtmvbot/data/bbtmvbot.log:/bbtmvbot.log:ro
 ```
 
 But before running anything, create `./vector/vector.yaml` file with the following contents:
