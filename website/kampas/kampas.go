@@ -101,6 +101,7 @@ func (obj *Kampas) Retrieve(db *database.Database, c chan *website.Post) {
 		}
 		p.Heating = strings.ReplaceAll(p.Heating, "gas", "dujinis")
 		p.Heating = strings.ReplaceAll(p.Heating, "central", "centrinis")
+		p.Heating = strings.ReplaceAll(p.Heating, "city", "miesto")
 		p.Heating = strings.ReplaceAll(p.Heating, "thermostat", "termostatas")
 
 		p.Address = v.Title
