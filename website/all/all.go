@@ -6,7 +6,6 @@ import (
 	_ "bbtmvbot/website/aruodas"
 	_ "bbtmvbot/website/domoplius"
 	_ "bbtmvbot/website/kampas"
-	_ "bbtmvbot/website/nuomininkai"
 	_ "bbtmvbot/website/rinka"
 	_ "bbtmvbot/website/skelbiu"
 )
