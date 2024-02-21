@@ -142,4 +142,4 @@ sinks:
       enabled: false
 ```
 
-Spin up the updated `docker-compose.yml` and enjoy the OpenObserve. It will take some learning to get used to it, but it allows you to nicely inspect the logs, setup dashboards and even alerts.
+Spin up the updated `docker-compose.yml` and enjoy the OpenObserve. It will take some learning to get used to it, but it allows you to nicely inspect the logs, setup views, dashboards and even alerts.
