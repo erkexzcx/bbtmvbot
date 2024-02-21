@@ -76,7 +76,7 @@ func (obj *Aruodas) Retrieve(db *database.Database, c chan *website.Post) {
 		logger.Logger.Debugw(fmt.Sprintf("Processing post %s", link), "website", obj.Domain)
 
 		// Create new post
-		p := &website.Post{Link: link}
+		p := &website.Post{Website: obj.Domain, Link: link}
 
 		// If post is already in database - skip it
 		if db.InDatabase(p.Link) {
@@ -183,25 +183,6 @@ func (obj *Aruodas) Retrieve(db *database.Database, c chan *website.Post) {
 			}
 			p.Year, _ = strconv.Atoi(tmp)
 		}
-
-		// Trim fields
-		p.TrimFields()
-
-		logger.Logger.Infow(
-			"Post processed",
-			"website", obj.Domain,
-			"link", p.Link,
-			"phone", p.Phone,
-			"description_length", len(p.Description),
-			"address", p.Address,
-			"heating", p.Heating,
-			"floor", p.Floor,
-			"floor_total", p.FloorTotal,
-			"area", p.Area,
-			"price", p.Price,
-			"rooms", p.Rooms,
-			"year", p.Year,
-		)
 
 		// Send post to channel
 		c <- p

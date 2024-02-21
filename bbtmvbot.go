@@ -46,6 +46,7 @@ func Start(c *config.Config) {
 
 	// Init playwright
 	launchOpts := playwright.BrowserTypeLaunchOptions{
+		//ExecutablePath: playwright.String("/usr/bin/chromium"),
 		Headless: playwright.Bool(true),
 	}
 	pw, err := playwright.Run()
@@ -102,13 +103,80 @@ func refreshWebsites() {
 }
 
 func processPost(post *website.Post) {
-	if post.IsExcludable() {
-		db.AddPost(post.Link)
+	// Process fields (trim, remove whitespaces)
+	post.ProcessFields()
+
+	// Set fee bool value
+	post.DetectFee()
+
+	// Detect critical issues with the post - these must exist
+	var postErrors []string
+	if len(post.Phone) == 0 {
+		postErrors = append(postErrors, "empty phone")
+	}
+	if len(post.Description) == 0 {
+		postErrors = append(postErrors, "empty description")
+	}
+	if len(post.Address) == 0 {
+		postErrors = append(postErrors, "empty address")
+	}
+	if post.Price == 0 {
+		postErrors = append(postErrors, "zero price")
+	}
+	if post.Rooms == 0 {
+		postErrors = append(postErrors, "zero rooms")
+	}
+	if post.Year == 0 {
+		postErrors = append(postErrors, "zero year")
+	}
+
+	// Detect less critical issues with the post - these should exist, but not necesarrily (e.g., not provided in post)
+	var postWarnings []string
+	if len(post.Address) == 0 {
+		postWarnings = append(postWarnings, "empty address")
+	}
+	if len(post.Heating) == 0 {
+		postWarnings = append(postWarnings, "empty heating")
+	}
+	if post.Floor == 0 {
+		postWarnings = append(postWarnings, "empty floor")
+	}
+	if post.FloorTotal == 0 {
+		postWarnings = append(postWarnings, "empty floorTotal")
+	}
+	if post.Area == 0 {
+		postWarnings = append(postWarnings, "empty area")
+	}
+
+	// Print post to logger
+	logger.Logger.Infow(
+		"Post processed",
+		"website", post.Website,
+		"link", post.Link,
+		"phone", post.Phone,
+		"description_length", len(post.Description),
+		"address", post.Address,
+		"heating", post.Heating,
+		"floor", post.Floor,
+		"floor_total", post.FloorTotal,
+		"area", post.Area,
+		"price", post.Price,
+		"rooms", post.Rooms,
+		"year", post.Year,
+		"fee", post.Fee,
+		"post_errors", postErrors,
+		"post_warnings", postWarnings,
+	)
+
+	// Always add to database, so it's not being opened more than once
+	insertedPostID := db.AddPost(post.Link)
+
+	// Do not send to Telegram if has fee or has below 3 not properly fetched fields
+	if post.Fee || len(postErrors) > 0 {
 		return
 	}
 
-	insertedPostID := db.AddPost(post.Link)
-
+	// Send to Telegram
 	telegramIDs := db.GetInterestedTelegramIDs(post.Price, post.Rooms, post.Year)
 	for _, telegramID := range telegramIDs {
 		sendTelegram(telegramID, post.FormatTelegramMessage(insertedPostID))

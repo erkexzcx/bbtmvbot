@@ -8,6 +8,7 @@ import (
 )
 
 type Post struct {
+	Website     string
 	Link        string
 	Phone       string
 	Description string
@@ -19,6 +20,7 @@ type Post struct {
 	Price       int
 	Rooms       int
 	Year        int
+	Fee         bool
 }
 
 // Ensure these are lowercase
@@ -54,26 +56,28 @@ var lithuanianReplacer = strings.NewReplacer(
 	"y", "i", // Replace y with i, because some people are bad at writting
 )
 
-func (p *Post) IsExcludable() bool {
+func (p *Post) DetectFee() {
+	// Default value is false.
+
+	// Process description
 	processedDescription := strings.ToLower(p.Description)
 	processedDescription = lithuanianReplacer.Replace(processedDescription)
 
 	// Check against keywords
 	for _, v := range feeKeywords {
 		if strings.Contains(processedDescription, v) {
-			return true
+			p.Fee = true
+			return
 		}
 	}
 
 	// Check against regexes
 	for _, v := range feeRegexes {
 		if v.MatchString(processedDescription) {
-			return true
+			p.Fee = true
+			return
 		}
 	}
-
-	// Ignore 0 eur price
-	return p.Price == 0
 }
 
 func (p *Post) FormatTelegramMessage(IDInDatabase int64) string {
@@ -118,7 +122,7 @@ func (p *Post) FormatTelegramMessage(IDInDatabase int64) string {
 	return sb.String()
 }
 
-func (p *Post) TrimFields() {
+func (p *Post) ProcessFields() {
 	p.Address = strings.TrimSpace(p.Address)
 	p.Heating = strings.TrimSpace(p.Heating)
 	p.Phone = strings.TrimSpace(p.Phone)
