@@ -115,7 +115,7 @@ func (obj *Aruodas) Retrieve(db *database.Database, c chan *website.Post) {
 		p.Phone = postDoc.Find("a[data-id=\"subtitlePhone1\"][data-type=\"phone\"]").First().Text()
 
 		// Extract description:
-		p.Description = postDoc.Find("#advertInfoContainer > #collapsedTextBlock > #collapsedText").Text()
+		p.Description = postDoc.Find(".object-info > .object-description").Text()
 
 		// Extract address:
 		p.Address = postDoc.Find(".show-advert-container > .advert-info-header > h1").Text()
