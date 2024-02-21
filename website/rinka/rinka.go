@@ -56,7 +56,7 @@ func (obj *Rinka) Retrieve(db *database.Database, c chan *website.Post) {
 	}
 
 	// Extract entries
-	entries, _ := page.Locator("#adsBlock div.ad a.title").All()
+	entries, _ := page.Locator("#adsBlock").First().Locator("div.ad a.title").All()
 	if len(entries) == 0 {
 		logger.Logger.Errorw("Could not find any posts", "website", obj.Domain)
 		return
