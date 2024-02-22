@@ -146,6 +146,6 @@ Spin up the updated `docker-compose.yml` and enjoy the OpenObserve. It will take
 
 For example, create and save these views in OpenObserve to have a great overview of what is likelly broken (switch to SQL mode and set appropriate relative time window):
 
-- Generic parsing errors: `SELECT link, error FROM "bbtmvbot" WHERE error is not null`
+- Generic parsing errors: `SELECT website, msg, error FROM "bbtmvbot" WHERE error is not null`
 - Post parsing errors (reasons of why post was not sent to users): `SELECT link, post_errors FROM "bbtmvbot" WHERE post_errors is not null`
 - Post parsing warnings (post is sent to users, but without these useful details): `SELECT link, post_warnings FROM "bbtmvbot" WHERE post_warnings is not null`
