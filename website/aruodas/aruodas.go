@@ -118,7 +118,7 @@ func (obj *Aruodas) Retrieve(db *database.Database, c chan *website.Post) {
 		p.Description = postDoc.Find(".object-info > .object-description").Text()
 
 		// Extract address:
-		p.Address = postDoc.Find(".show-advert-container > .advert-info-header > h1").Text()
+		p.Address = postDoc.Find(".advert-heading-col.title-col > h1").Text()
 
 		// Extract heating:
 		el := postDoc.Find("dt:contains(\"Šildymas\")")
