@@ -5,7 +5,7 @@ go 1.22
 require (
 	github.com/PuerkitoBio/goquery v1.8.1
 	github.com/mattn/go-sqlite3 v1.14.22
-	github.com/playwright-community/playwright-go v0.4101.1
+	github.com/playwright-community/playwright-go v0.4201.0
 	go.uber.org/zap v1.26.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gopkg.in/telebot.v3 v3.2.1
