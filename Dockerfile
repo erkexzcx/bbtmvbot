@@ -13,6 +13,7 @@ RUN CGO_ENABLED=1 GOOS=$TARGETOS GOARCH=$TARGETARCH GOARM=${TARGETVARIANT#v} go 
 FROM ubuntu:noble-20240212
 RUN apt-get update && apt-get install -y ca-certificates
 COPY --from=builder /go/bin/playwright /root/go/bin/playwright
+COPY --from=builder /root/.cache/ms-playwright-go /root/.cache/ms-playwright-go
 RUN /root/go/bin/playwright install --with-deps chromium
 COPY --from=builder /app/bbtmvbot /bbtmvbot
 RUN apt-get clean autoclean && \
