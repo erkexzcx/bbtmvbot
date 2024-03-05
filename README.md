@@ -149,3 +149,20 @@ For example, create and save these views in OpenObserve to have a great overview
 - Generic parsing errors: `SELECT website, msg, error FROM "bbtmvbot" WHERE error is not null`
 - Post parsing errors (reasons of why post was not sent to users): `SELECT link, post_errors FROM "bbtmvbot" WHERE post_errors is not null`
 - Post parsing warnings (post is sent to users, but without these useful details): `SELECT link, post_warnings FROM "bbtmvbot" WHERE post_warnings is not null`
+
+# Development
+
+Install playwright on your PC, change `Headless:       playwright.Bool(true),` to `Headless:       playwright.Bool(false),` to see stuff in action.
+
+For Docker, install `buildx` module and use following:
+
+```bash
+# Build Docker image
+docker buildx build --platform=linux/amd64 . -t bbtmvbot:custom --progress=plain --load
+
+# Test Docker image (create /data and config.yml in advance)
+docker run --rm --name bbtmvbot -v $(pwd)/config.yml:/config.yml -v $(pwd)/data:/data bbtmvbot:custom
+
+# Run Docker image into /bin/sh
+docker run -it --rm --entrypoint /bin/sh bbtmvbot:custom
+```
