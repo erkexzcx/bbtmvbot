@@ -21,7 +21,7 @@ func InitLogger(logFilePath string, level string) {
 	})
 
 	pe := zap.NewProductionEncoderConfig()
-	pe.EncodeTime = zapcore.ISO8601TimeEncoder
+	pe.EncodeTime = zapcore.RFC3339TimeEncoder
 
 	fileEncoder := zapcore.NewJSONEncoder(pe)
 	consoleEncoder := zapcore.NewConsoleEncoder(pe)
