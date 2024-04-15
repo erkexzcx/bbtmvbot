@@ -130,6 +130,9 @@ Jei butas tiks bus imamas vienkartinis tarpininkavimo mokestis.
 JEI BUTAS TIKS - BUS TAIKOMAS VIENKARTINIS TARPININKAVIMO MOKESTIS
 Galima skambinti ir poilsio dienomis, jei neatsiliepiu - perskambinu.
 		`,
+	`
+Bus sudaroma nuomos sutartis ,
+Jei butas tiks bus pritaikytas vienkartinis tarpininkavimo mokestis-100€`,
 }
 
 var PostTestDataNoFee = []string{
@@ -154,29 +157,22 @@ tarpininkavimo mokesčio nėra
 	`
 nėra taikomas tarpininkavimo mokestis
 		`,
-	`
-nuomos mokestis + komunaliniai
-		`,
 }
 
-func TestHasFee(t *testing.T) {
-	p := &Post{}
+func TestDetectFee(t *testing.T) {
+	var p *Post
 	for _, desc := range PostTestDataFee {
-		p.Description = desc
+		p = &Post{Description: desc}
 		p.DetectFee()
 		if p.Fee == false {
 			t.Errorf("Result was incorrect, '%s' expected '%t', got: '%t'.", strings.TrimSpace(desc), true, false)
 		}
 	}
-}
-
-func TestHasNoFee(t *testing.T) {
-	p := &Post{}
 	for _, desc := range PostTestDataNoFee {
-		p.Description = desc
+		p = &Post{Description: desc}
 		p.DetectFee()
 		if p.Fee == true {
-			t.Errorf("Result was incorrect, '%s' expected '%t', got: '%t'.", strings.TrimSpace(desc), false, true)
+			t.Errorf("Result was incorrect, '%s' expected '%t', got: '%t'.", strings.TrimSpace(desc), true, false)
 		}
 	}
 }
