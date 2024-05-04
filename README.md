@@ -122,7 +122,8 @@ transforms:
     type: "remap"
     source: |-
       . = parse_json!(.message)
-      ._timestamp = del(.ts)
+      .ts = to_int!(.ts * 1000000000 ?? 0)
+      .@timestamp = from_unix_timestamp!(del(.ts), "nanoseconds")
 
 sinks:
   elasticsearch:
