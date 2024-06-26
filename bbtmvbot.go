@@ -17,9 +17,12 @@ import (
 var (
 	db *database.Database
 	tb *telebot.Bot
+	discordConfig *config.DiscordConfig
+	discordEnabled bool
 )
 
 func Start(c *config.Config) {
+	discordConfig = c.DiscordConfig
 	// Init logger
 	logFilePath := path.Join(c.DataDir, "bbtmvbot.log")
 	logger.InitLogger(logFilePath, c.LogLevel)
@@ -32,17 +35,22 @@ func Start(c *config.Config) {
 	}
 
 	// Init Telegram bot
-	pref := telebot.Settings{
-		Token:  c.TelegramApiKey,
-		Poller: &telebot.LongPoller{Timeout: 10 * time.Second},
+	if (c.DiscordConfig.WebHook == "" && c.TelegramApiKey != "") {
+		pref := telebot.Settings{
+			Token:  c.TelegramApiKey,
+			Poller: &telebot.LongPoller{Timeout: 10 * time.Second},
+		}
+		tb, err = telebot.NewBot(pref)
+		if err != nil {
+			log.Fatalln("Could not create Telegram bot:", err)
+		}
+		tb.Use(TelegramMiddlewareUserInDB)
+		initTelegramHandlers()
+		go tb.Start()
+	} else {
+		logger.Logger.Infow("No Telegram API key provided, using Discord\n")
+		discordEnabled = true
 	}
-	tb, err = telebot.NewBot(pref)
-	if err != nil {
-		log.Fatalln("Could not create Telegram bot:", err)
-	}
-	tb.Use(TelegramMiddlewareUserInDB)
-	initTelegramHandlers()
-	go tb.Start()
 
 	// Init playwright
 	launchOpts := playwright.BrowserTypeLaunchOptions{
@@ -130,7 +138,7 @@ func processPost(post *website.Post) {
 		postErrors = append(postErrors, "zero year")
 	}
 
-	// Detect less critical issues with the post - these should exist, but not necesarrily (e.g., not provided in post)
+	// Detect less critical issues with the post - these should exist, but not necessarily (e.g., not provided in post)
 	var postWarnings []string
 	if len(post.Address) == 0 {
 		postWarnings = append(postWarnings, "empty address")
@@ -177,9 +185,18 @@ func processPost(post *website.Post) {
 	}
 
 	// Send to Telegram
-	telegramIDs := db.GetInterestedTelegramIDs(post.Price, post.Rooms, post.Year)
-	for _, telegramID := range telegramIDs {
-		sendTelegram(telegramID, post.FormatTelegramMessage(insertedPostID))
+	if !discordEnabled {
+		telegramIDs := db.GetInterestedTelegramIDs(post.Price, post.Rooms, post.Year)
+		for _, telegramID := range telegramIDs {
+			sendTelegram(telegramID, post.FormatTelegramMessage(insertedPostID))
+		}
+	} else {
+		if filterPost(post, discordConfig.PriceFrom, discordConfig.PriceTo, discordConfig.RoomsFrom, discordConfig.RoomsTo) {
+			var err = sendDiscord(post.FormatDiscordMessage(insertedPostID), discordConfig.WebHook)
+			if err != nil {
+				logger.Logger.Errorw("Could not send Discord message", "error", err)
+			}
+		}
 	}
 }
 
