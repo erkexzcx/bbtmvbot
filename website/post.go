@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"time"
 )
 
 type Post struct {
@@ -21,6 +22,25 @@ type Post struct {
 	Rooms       int
 	Year        int
 	Fee         bool
+}
+
+type Payload struct {
+	Content any `json:"content"`
+    Embeds []Embed `json:"embeds"`
+}
+
+type Embed struct {
+	Title 		string `json:"title"`
+	Description string `json:"description"`
+	Link 		string `json:"url"`
+	Color 		int `json:"color"`
+	Timestamp	string `json:"timestamp"`
+	Fields 		[]EmbedField `json:"fields"`
+}
+
+type EmbedField struct {
+	Name 	string `json:"name"`
+	Value 	string `json:"value"`
 }
 
 // Ensure these are lowercase
@@ -120,6 +140,93 @@ func (p *Post) FormatTelegramMessage(IDInDatabase int64) string {
 	}
 
 	return sb.String()
+}
+
+func (p *Post) FormatDiscordMessage(IDInDatabase int64) *Payload  {
+	var embed = &Embed{
+		Title: fmt.Sprintf("Rastas naujas butas (ID: %d)", IDInDatabase),
+		Description: "",
+		Link: p.Link,
+		Color: 0x33ff00,
+		Timestamp: time.Now().Format(time.RFC3339),
+		Fields: []EmbedField{},
+	}
+
+	if p.Address != "" {
+		embed.Fields = append(embed.Fields, EmbedField{
+			Name: "Adresas",
+			Value: fmt.Sprintf("[%s](https://maps.google.com/?q=%s)", p.Address, url.QueryEscape(p.Address)),
+		})
+	}
+
+	if p.Price != 0 && p.Area != 0 {
+		embed.Fields = append(embed.Fields, EmbedField{
+			Name: "Kaina",
+			Value: fmt.Sprintf("%d€ *(%.2f€/m²)*", p.Price, float64(p.Price)/float64(p.Area)),
+		})
+	} else if p.Price != 0 {
+		embed.Fields = append(embed.Fields, EmbedField{
+			Name: "Kaina",
+			Value: fmt.Sprintf("%d€", p.Price),
+		})
+	}
+
+	if p.Rooms != 0 && p.Area != 0 {
+		embed.Fields = append(embed.Fields, EmbedField{
+			Name: "Kambariai",
+			Value: fmt.Sprintf("%d *(%dm²)*", p.Rooms, p.Area),
+		})
+	} else if p.Rooms != 0 {
+		embed.Fields = append(embed.Fields, EmbedField{
+			Name: "Kambariai",
+			Value: fmt.Sprintf("%d", p.Rooms),
+		})
+	}
+	
+	if p.Phone != "" {
+		embed.Fields = append(embed.Fields, EmbedField{
+			Name: "Tel. numeris",
+			Value: p.Phone,
+		})
+	}
+
+	if p.Year != 0 {
+		embed.Fields = append(embed.Fields, EmbedField{
+			Name: "Statybos metai",
+			Value: fmt.Sprintf("%d", p.Year),
+		})
+	}
+
+	if p.Heating != "" {
+		embed.Fields = append(embed.Fields, EmbedField{
+			Name: "Šildymo tipas",
+			Value: p.Heating,
+		})
+	}
+
+	if p.Floor != 0 && p.FloorTotal != 0 {
+		embed.Fields = append(embed.Fields, EmbedField{
+			Name: "Aukštas",
+			Value: fmt.Sprintf("%d/%d", p.Floor, p.FloorTotal),
+		})
+	} else if p.Floor != 0 {
+		embed.Fields = append(embed.Fields, EmbedField{
+			Name: "Aukštas",
+			Value: fmt.Sprintf("%d", p.Floor),
+		})
+	}
+
+	if p.Link != "" {
+		embed.Fields = append(embed.Fields, EmbedField{
+			Name: "Nuoroda",
+			Value: fmt.Sprintf("[%s](%s)", p.Website, p.Link),
+		})
+	}
+
+	return &Payload{
+		Content: nil,
+		Embeds: []Embed{*embed},
+	}
 }
 
 func (p *Post) ProcessFields() {

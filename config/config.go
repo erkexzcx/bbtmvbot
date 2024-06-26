@@ -22,6 +22,15 @@ type Config struct {
 		Interval  time.Duration `yaml:"interval"`
 		UserAgent string        `yaml:"user_agent"`
 	} `yaml:"parsing"`
+	DiscordConfig *DiscordConfig `yaml:"DiscordConfig"`
+}
+
+type DiscordConfig struct {
+	WebHook 	string `yaml:"webhook"`
+	PriceFrom 	int `yaml:"price_from"`
+	PriceTo 	int `yaml:"price_to"`
+	RoomsFrom 	int `yaml:"rooms_from"`
+	RoomsTo 	int `yaml:"rooms_to"`
 }
 
 func New(path string) (*Config, error) {
@@ -52,8 +61,8 @@ func New(path string) (*Config, error) {
 	c.LogLevel = strings.ToLower(c.LogLevel)
 
 	// Validation
-	if len(c.TelegramApiKey) == 0 {
-		return nil, errors.New("missing telegram_api_key")
+	if len(c.TelegramApiKey) == 0 && c.DiscordConfig == nil {
+		return nil, errors.New("missing telegram_api_key or DiscordConfig")
 	}
 	if _, _, err := net.SplitHostPort(c.Metrics.Bind); err != nil {
 		return nil, errors.New("missing or invalid metrics_bind")
