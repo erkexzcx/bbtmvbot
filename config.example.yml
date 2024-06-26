@@ -7,8 +7,16 @@
 # Telegram API key:
 telegram_api_key: 1234567890:6xYrZZ2s_jrki5qgr8OxVBS566z2ZGF4Co7
 
+# Discord config example
+DiscordConfig:
+  webhook: https://discord.com/api/webhooks/123
+  price_from: 300
+  price_to: 900
+  rooms_from: 1
+  rooms_to: 5
+
 # User agent (prefer Windows desktop browser)
-user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36
+user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36
 
 # Prometheus metrics settings
 #metrics:

@@ -3,7 +3,7 @@
 [![License](https://img.shields.io/github/license/erkexzcx/bbtmvbot)](LICENSE)
 [![Go Report Card](https://goreportcard.com/badge/github.com/erkexzcx/bbtmvbot)](https://goreportcard.com/report/github.com/erkexzcx/bbtmvbot)
 
-This bot scans the most popular flat rent portals for latest posts in Vilnius, which will be sent to subscribed users using Telegram app. This Telegram bot is suppossed to be multi-user, which means that you can host your own instance of this app and let others use your bot - either directly (private chat) or in group chats, so you and your significant other can get latest posts directly to your group chat.
+This bot scans the most popular flat rent portals for latest posts in Vilnius, which will be sent to subscribed users using Telegram app or post messages to Discord channel. This Telegram bot is supposed to be multi-user, which means that you can host your own instance of this app and let others use your bot - either directly (private chat) or in group chats, so you and your significant other can get latest posts directly to your group chat.
 
 Only `x86_64` architecture and Docker is supported. I suggest having at least 1GB RAM for this application to work, since it uses headless chromium browser and opens 7 tabs (websites) all at once for parsing.
 
@@ -26,7 +26,7 @@ Once you set-up bot, you should have your bot's Telegram **API key**.
 
 Out of `config.example.yml` create `config.yml` file with the following contents (see my added comments below):
 
-```
+```yml
 # Log level - set it to `info`, unless you are developing it, then `debug`
 log_level: info # debug, info, warn, error
 
@@ -36,8 +36,16 @@ data_dir: data
 # Telegram API key - BotFather will tell you the key
 telegram_api_key: 1234567890:6xYrZZ2s_jrki5qgr8OxVBS566z2ZGF4Co7
 
+# Discord config example
+DiscordConfig:
+  webhook: https://discord.com/api/webhooks/123
+  price_from: 300
+  price_to: 900
+  rooms_from: 1
+  rooms_to: 5
+
 # User agent (prefer Windows desktop browser) - Ensure it uses __latest__ Windows Chrome user-agent to avoid suspicion by anti-bot systems
-user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36
+user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36
 ```
 
 In case I forget to update above config example - always see `config.example.yml` for latest changes.
@@ -56,7 +64,7 @@ bbtmvbot
 
 Now this is how your `docker-compose.yml` should look like:
 
-```
+```yaml
 services:
 
   bbtmvbot:
@@ -72,6 +80,14 @@ services:
 
 Simply start it, then go to Telegram and issue `/config` (or whatever) command for this bot. Enjoy!
 
+## Using Discord instead of Telegram
+
+You can also use discord instead of telegram. However, in that case, only one discord channel will receive notifications.
+
+To use Discord, instead of Telegram, the only thing that is needed is to provide config in the `config.yml` file. `webhook` url needs to be provided. Only Discord server admin can generate this using *Integrations* setting in the server settings. 
+
+Additionally, `price_from`, `price_to`, `rooms_from` and `rooms_to` fields are needed to filter out rental posts.
+
 ## (Optional) set-up logs DB
 
 If you have no plans to contribute to this project (either by raising issues or pull requests), there is no need to do this step. Simply enjoy the application and I will _try_ to keep it up to date.
@@ -82,7 +98,7 @@ One way to tackle this problem is to set-up logs database. I prefer [OpenObserve
 
 Here is how you can expand your `docker-compose.yml` by appending below contents:
 
-```
+```yaml
   openobserve:
     image: public.ecr.aws/zinclabs/openobserve
     container_name: openobserve
